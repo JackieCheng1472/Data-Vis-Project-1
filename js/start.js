@@ -2,14 +2,14 @@ const margin = { top: 40, right: 50, bottom: 50, left: 70 };
 const width = 1000 - margin.left - margin.right;
 const height = 600 - margin.top - margin.bottom;
 
-d3.csv("data/income-share-top-1-before-tax-wid.csv").then(data => {
+d3.csv("data/sand-and-gravel-construction-unit-value.csv").then(data => {
 
   console.log("Data loaded:", data);
 
   // ---- DATA PROCESSING ----
   data.forEach(d => {
     d.Year = +d.Year;
-    d.Share = +d["Share (top 1%, before tax)"];
+    d.SandGrav = +d["sand and gravel"];
   });
 
   drawChart(data);
@@ -18,14 +18,15 @@ d3.csv("data/income-share-top-1-before-tax-wid.csv").then(data => {
   console.error("Error loading data:", error);
 });
 
-d3.csv("data/gdp-per-capita-worldbank.csv").then(data => {
+d3.csv("data/share-urban-and-rural-population.csv").then(data => {
 
   console.log("Data loaded:", data);
 
   // ---- DATA PROCESSING ----
   data.forEach(d => {
     d.Year = +d.Year;
-    d.GDP = +d["GDP per capita"];
+    d.Urban = +d["Urban"];
+    d.Rural = +d["Rural"];
   });
 
   drawChart2(data);
@@ -35,18 +36,19 @@ d3.csv("data/gdp-per-capita-worldbank.csv").then(data => {
 });
 
 Promise.all([
-  d3.csv("data/income-share-top-1-before-tax-wid.csv"),
-  d3.csv("data/gdp-per-capita-worldbank.csv")
+  d3.csv("data/sand-and-gravel-construction-unit-value.csv"),
+  d3.csv("data/share-urban-and-rural-population.csv")
 ]).then(([incomeData, gdpData]) => {
 
   incomeData.forEach(d => {
     d.Year = +d.Year;
-    d.Share = +d["Share (top 1%, before tax)"];
+    d.SandGrav = +d["sand and gravel"];
   });
 
   gdpData.forEach(d => {
     d.Year = +d.Year;
-    d.GDP = +d["GDP per capita"];
+    d.Urban = +d["Urban"];
+    d.Rural = +d["Rural"];
   });
 
   const mergedData = mergeDatasets(incomeData, gdpData);
@@ -55,13 +57,13 @@ Promise.all([
   drawMergedChart(mergedData);
 });
 
-function mergeDatasets(incomeData, gdpData) {
+function mergeDatasets(incomeData, urbData) {
 
   // Create lookup: "Entity-Year" → GDP value
-  const gdpMap = new Map();
+  const urbMap = new Map();
 
-  gdpData.forEach(d => {
-    gdpMap.set(`${d.Entity}-${d.Year}`, d.GDP);
+  urbData.forEach(d => {
+    urbMap.set(`${d.Entity}-${d.Year}`, d.GDP);
   });
 
   // Merge GDP into income records
@@ -70,8 +72,6 @@ function mergeDatasets(incomeData, gdpData) {
     .map(d => ({
       Entity: d.Entity,
       Year: d.Year,
-      Share: d.Share,
-      GDP: gdpMap.get(`${d.Entity}-${d.Year}`)
     }));
 
   return merged;

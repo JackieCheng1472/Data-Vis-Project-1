@@ -1,0 +1,45 @@
+{
+  "chart": {
+    "title": "Share of people living in urban and rural areas",
+    "note": "Because the estimates of city and metropolitan areas are based on national definitions of what constitutes a city or metropolitan area, cross-country comparisons should be made with caution.",
+    "citation": "World Urbanization Prospects - UN Population Division, via World Bank (2026); World Bank based on data from the UN Population Division (2026)",
+    "originalChartUrl": "https://ourworldindata.org/grapher/share-urban-and-rural-population?v=1&csvType=full&useColumnShortNames=false",
+    "selection": [
+      "World"
+    ]
+  },
+  "columns": {
+    "Urban population (% of total population)": {
+      "titleShort": "Urban",
+      "titleLong": "Urban",
+      "shortUnit": "%",
+      "unit": "% of total",
+      "timespan": "1960-2024",
+      "type": "Numeric",
+      "owidVariableId": 1145573,
+      "shortName": "sp_urb_totl_in_zs",
+      "lastUpdated": "2026-01-29",
+      "nextUpdate": "2027-01-29",
+      "citationShort": "World Urbanization Prospects - UN Population Division, via World Bank (2026) – processed by Our World in Data",
+      "citationLong": "World Urbanization Prospects - UN Population Division, via World Bank (2026) – processed by Our World in Data. “Urban” [dataset]. World Urbanization Prospects - UN Population Division, via World Bank, “World Development Indicators 125” [original data].",
+      "fullMetadata": "https://api.ourworldindata.org/v1/indicators/1145573.metadata.json"
+    },
+    "Rural population (% of total population)": {
+      "titleShort": "Rural",
+      "titleLong": "Rural",
+      "shortUnit": "%",
+      "unit": "% of total population",
+      "timespan": "1960-2024",
+      "type": "Numeric",
+      "owidVariableId": 1145566,
+      "shortName": "sp_rur_totl_zs",
+      "lastUpdated": "2026-01-29",
+      "nextUpdate": "2027-01-29",
+      "citationShort": "World Bank based on data from the UN Population Division (2026) – processed by Our World in Data",
+      "citationLong": "World Bank based on data from the UN Population Division (2026) – processed by Our World in Data. “Rural” [dataset]. World Bank based on data from the UN Population Division, “World Development Indicators 125” [original data].",
+      "fullMetadata": "https://api.ourworldindata.org/v1/indicators/1145566.metadata.json"
+    }
+  },
+  "dateDownloaded": "2026-02-14",
+  "activeFilters": {}
+}

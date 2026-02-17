@@ -2,14 +2,14 @@ const margin = { top: 40, right: 50, bottom: 50, left: 70 };
 const width = 1000 - margin.left - margin.right;
 const height = 600 - margin.top - margin.bottom;
 
-d3.csv("data/sand-and-gravel-construction-unit-value.csv").then(data => {
+d3.csv("data/gdp-per-capita-worldbank.csv").then(data => {
 
   console.log("Data loaded:", data);
 
   // ---- DATA PROCESSING ----
   data.forEach(d => {
     d.Year = +d.Year;
-    d.SandGrav = +d["sand and gravel"];
+    d.gdp = +d["gdp"];
   });
 
   drawChart(data);
@@ -36,13 +36,13 @@ d3.csv("data/share-urban-and-rural-population.csv").then(data => {
 });
 
 Promise.all([
-  d3.csv("data/sand-and-gravel-construction-unit-value.csv"),
+  d3.csv("data/gdp-per-capita-worldbank.csv"),
   d3.csv("data/share-urban-and-rural-population.csv")
 ]).then(([incomeData, gdpData]) => {
 
   incomeData.forEach(d => {
     d.Year = +d.Year;
-    d.SandGrav = +d["sand and gravel"];
+    d.gdpData = +d["gdp"];
   });
 
   gdpData.forEach(d => {
@@ -57,7 +57,7 @@ Promise.all([
   drawMergedChart(mergedData);
 });
 
-function mergeDatasets(incomeData, urbData) {
+function mergeDatasets(matData, urbData) {
 
   // Create lookup: "Entity-Year" → GDP value
   const urbMap = new Map();
@@ -67,8 +67,8 @@ function mergeDatasets(incomeData, urbData) {
   });
 
   // Merge GDP into income records
-  const merged = incomeData
-    .filter(d => gdpMap.has(`${d.Entity}-${d.Year}`)) // keep only matches
+  const merged = matData
+    .filter(d => urbMap.has(`${d.Entity}-${d.Year}`)) // keep only matches
     .map(d => ({
       Entity: d.Entity,
       Year: d.Year,
@@ -109,7 +109,7 @@ function drawMergedChart(data) {
     .attr("y", 40)
     .attr("fill", "black")
     .attr("text-anchor", "middle")
-    .text("GDP per Capita (USD)");
+    .text("gdp per capita");
 
   svg.append("g")
     .call(d3.axisLeft(yScale))
@@ -119,7 +119,7 @@ function drawMergedChart(data) {
     .attr("y", -50)
     .attr("fill", "black")
     .attr("text-anchor", "middle")
-    .text("Top 1% Income Share (%)");
+    .text("rulization or Urbanization");
 
   // ---- POINTS ----
   const circles = svg.selectAll("circle")
@@ -202,7 +202,7 @@ function drawChart(data) {
     .attr("y", -50)
     .attr("fill", "black")
     .attr("text-anchor", "middle")
-    .text("Share of Income (Top 1%)");
+    .text("GDP per capita");
 
   // ---- CIRCLES ----
   const circles = svg.selectAll("circle")
@@ -287,7 +287,7 @@ function drawChart2(data) {
     .attr("y", -50)
     .attr("fill", "black")
     .attr("text-anchor", "middle")
-    .text("GDP per Capita (USD)");
+    .text("Ruralization or Urbanization");
 
   // ---- CIRCLES ----
   const circles = svg.selectAll("circle")

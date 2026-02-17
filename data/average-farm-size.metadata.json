@@ -1,0 +1,35 @@
+{
+  "chart": {
+    "title": "Average farm size",
+    "citation": "Lowder et al. (2016). The number, size, and distribution of farms, smallholder farms, and family farms worldwide. World Development.",
+    "originalChartUrl": "https://ourworldindata.org/grapher/average-farm-size?v=1&csvType=full&useColumnShortNames=false",
+    "selection": [
+      "Austria",
+      "Malawi",
+      "Brazil",
+      "United Kingdom",
+      "United States",
+      "India",
+      "France",
+      "Netherlands",
+      "Ethiopia",
+      "Vietnam",
+      "Kenya"
+    ]
+  },
+  "columns": {
+    "average_farm_size_ha": {
+      "titleShort": "Average farm size",
+      "titleLong": "Average farm size",
+      "unit": "",
+      "timespan": "",
+      "type": "Numeric",
+      "owidVariableId": 147002,
+      "citationShort": " – processed by Our World in Data",
+      "citationLong": " – processed by Our World in Data. “Average farm size” [dataset]. Lowder et al. (2016). The number, size, and distribution of farms, smallholder farms, and family farms worldwide. World Development. [original data].",
+      "fullMetadata": "https://api.ourworldindata.org/v1/indicators/147002.metadata.json"
+    }
+  },
+  "dateDownloaded": "2026-02-17",
+  "activeFilters": {}
+}

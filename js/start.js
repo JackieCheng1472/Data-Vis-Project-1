@@ -242,14 +242,14 @@ function drawGenderBarChart(data) {
     .attr("x", iW / 2).attr("y", -14)
     .attr("text-anchor", "middle")
     .attr("font-size", "14px").attr("font-weight", "bold")
-    .text("Gender Development Index by Country"); // was "Urban vs Rural..." (wrong title)
+    .text("Gender Development Index by Country (2024)"); 
 
   const x = d3.scaleBand()
     .domain(barData.map(d => d.Entity))
     .range([0, iW]).padding(0.15);
 
   const y = d3.scaleLinear()
-    .domain([0, 1.1]) // GDI ranges 0–~1.1, not 0–100
+    .domain([0, 1.1]) // GDI ranges 0–~1.1
     .range([iH, 0]);
 
   // gridlines
@@ -264,22 +264,22 @@ function drawGenderBarChart(data) {
     .join("rect")
     .attr("class", "bar-gender")
     .attr("x", d => x(d.Entity))
-    .attr("y", d => y(d.gdi)) // was d.gender
+    .attr("y", d => y(d.gdi)) 
     .attr("width", x.bandwidth())
-    .attr("height", d => iH - y(d.gdi)) // was d.gender
+    .attr("height", d => iH - y(d.gdi)) 
     .attr("fill", "#2196f3")
     .on("mouseover", (event, d) => {
       d3.select("#tooltip")
         .style("display", "block")
         .style("left", (event.pageX + 10) + "px")
         .style("top",  (event.pageY + 10) + "px")
-        .html(`<strong>${d.Entity}</strong><br/>GDI: ${d.gdi.toFixed(3)}<br/>Year: ${d.Year}`); // was toFixed(1) with "%" which is wrong for GDI
+        .html(`<strong>${d.Entity}</strong><br/>GDI: ${d.gdi.toFixed(3)}<br/>Year: ${d.Year}`); 
     })
     .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
 
   // y axis
   svg.append("g")
-    .call(d3.axisLeft(y).tickFormat(d => d.toFixed(2)).tickSize(0)) // was just d => d, now formatted
+    .call(d3.axisLeft(y).tickFormat(d => d.toFixed(2)).tickSize(0)) 
     .call(g => g.select(".domain").remove());
 
   // x axis

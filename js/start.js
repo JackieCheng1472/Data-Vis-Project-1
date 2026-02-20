@@ -14,7 +14,7 @@ d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {
     d.pop    = +d["Population"];
   });
 
-  drawChart2(data);
+  //drawChart2(data);
   drawGenderBarChart(data);
 
 }).catch(error => {
@@ -32,7 +32,7 @@ d3.csv("data/share-urban-and-rural-population.csv").then(data => {
     d.Rural = +d["Rural"];
   });
 
-  drawUrbChart(data);
+  //drawUrbChart(data);
   drawUrbBarChart(data);  
 
 }).catch(error => {
@@ -41,62 +41,24 @@ d3.csv("data/share-urban-and-rural-population.csv").then(data => {
 
 Promise.all([
   d3.csv("data/share-urban-and-rural-population.csv"),
-  d3.csv("data/gdp-per-capita-worldbank.csv")
-]).then(([incomeData, gdpData]) => {
+  d3.csv("data/gender-development-index-vs-gdp-per-capita.csv")
+]).then(([urbData, genderData]) => {
 
-  incomeData.forEach(d => {
-    d.Year = +d.Year;
+  urbData.forEach(d => {
+    d.Year  = +d.Year;
     d.Urban = +d["Urban"];
     d.Rural = +d["Rural"];
   });
 
-  gdpData.forEach(d => {
-    d.Year = +d.Year;
-    d.gdpData = +d["gdp"];
+  genderData.forEach(d => {
+    d.Year   = +d.Year;
+    d.gdi    = +d["Gender Development Index"];
   });
 
-  const mergedData = mergeDatasets(incomeData, gdpData);
-  console.log("Merged data:", mergedData);
-
-  drawMergedChart(mergedData);
+  drawScatterChart(urbData, genderData);  // ← correct datasets now
 });
 
-function mergeDatasets(matData, urbData) {
 
-  const urbMap = new Map();
-  urbData.forEach(d => {
-    urbMap.set(`${d.Entity}-${d.Year}`, d.GDP);
-  });
-
-  const merged = matData
-    .filter(d => urbMap.has(`${d.Entity}-${d.Year}`))
-    .map(d => ({
-      Entity: d.Entity,
-      Year: d.Year,
-    }));
-
-  return merged;
-}
-
-function mergeDatasets(matData, urbData) {
-
-  // Create lookup: "Entity-Year" → GDP value
-  const urbMap = new Map();
-
-  urbData.forEach(d => {
-    urbMap.set(`${d.Entity}-${d.Year}`, d.GDP);
-  });
-
-  // Merge GDP into income records
-  const merged = matData
-    .filter(d => urbMap.has(`${d.Entity}-${d.Year}`)) // keep only matches
-    .map(d => ({
-      Entity: d.Entity,
-      Year: d.Year,
-    }));
-
-  return merged;
-}
 
 // ---- BAR CHART: Urban vs Rural share per country (latest year) ----
 function drawUrbBarChart(data) {
@@ -298,6 +260,166 @@ function drawGenderBarChart(data) {
   legend.append("text").attr("x", 16).attr("y", 10).attr("font-size", "11px").text("Gender Development Index");
 }
 
+function drawScatterChart(urbData, genderData) {
+
+  // get latest year per country for urban data
+  const urbLatest = new Map();
+  urbData.forEach(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+    const prev = urbLatest.get(d.Entity);
+    if (!prev || d.Year > prev.Year) urbLatest.set(d.Entity, d);
+  });
+
+  // get latest year per country for gender data
+  const genderLatest = new Map();
+  genderData.forEach(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+    if (!d.gdi) return;
+    const prev = genderLatest.get(d.Entity);
+    if (!prev || d.Year > prev.Year) genderLatest.set(d.Entity, d);
+  });
+
+  // merge: only countries present in both datasets
+  const merged = [];
+  urbLatest.forEach((u, entity) => {
+    const g = genderLatest.get(entity);
+    if (g) merged.push({
+      Entity: entity,
+      Urban:  u.Urban,
+      gdi:    g.gdi,
+      region: g.region
+    });
+  });
+
+  const scatterMargin = { top: 40, right: 30, bottom: 60, left: 70 };
+  const scatterWidth  = 900 - scatterMargin.left - scatterMargin.right;
+  const scatterHeight = 500 - scatterMargin.top  - scatterMargin.bottom;
+
+  const svg = d3.select("body")
+    .append("svg")
+    .attr("width",  scatterWidth  + scatterMargin.left + scatterMargin.right)
+    .attr("height", scatterHeight + scatterMargin.top  + scatterMargin.bottom)
+    .append("g")
+    .attr("transform", `translate(${scatterMargin.left},${scatterMargin.top})`);
+
+  // title
+  svg.append("text")
+    .attr("x", scatterWidth / 2).attr("y", -14)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "14px").attr("font-weight", "bold")
+    .text("Urban Population % vs Gender Development Index by Country (2024)");
+
+  const x = d3.scaleLinear()
+    .domain([0, 100]).nice()
+    .range([0, scatterWidth]);
+
+  const y = d3.scaleLinear()
+    .domain(d3.extent(merged, d => d.gdi)).nice()
+    .range([scatterHeight, 0]);
+
+  const colorScale = d3.scaleOrdinal(d3.schemeTableau10)
+    .domain([...new Set(merged.map(d => d.region))]);
+
+  // gridlines
+  svg.append("g")
+    .call(d3.axisLeft(y).tickSize(-scatterWidth).tickFormat(""))
+    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
+    .call(g => g.select(".domain").remove());
+
+  svg.append("g")
+    .attr("transform", `translate(0,${scatterHeight})`)
+    .call(d3.axisBottom(x).tickSize(-scatterHeight).tickFormat(""))
+    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
+    .call(g => g.select(".domain").remove());
+
+  // axes
+  svg.append("g")
+    .attr("transform", `translate(0,${scatterHeight})`)
+    .call(d3.axisBottom(x).tickFormat(d => d + "%"))
+    .append("text")
+    .attr("x", scatterWidth / 2).attr("y", 45)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text("Urban Population %");
+
+  svg.append("g")
+    .call(d3.axisLeft(y).tickFormat(d => d.toFixed(2)))
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -scatterHeight / 2).attr("y", -55)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text("Gender Development Index");
+
+  // dots
+  svg.selectAll(".dot")
+    .data(merged)
+    .join("circle")
+    .attr("class", "dot")
+    .attr("cx", d => x(d.Urban))
+    .attr("cy", d => y(d.gdi))
+    .attr("r", 5)
+    .attr("fill", d => colorScale(d.region))
+    .attr("opacity", 0.75)
+    .attr("stroke", "white")
+    .attr("stroke-width", 0.5)
+    .on("mouseover", (event, d) => {
+      d3.select("#tooltip")
+        .style("display", "block")
+        .style("left", (event.pageX + 10) + "px")
+        .style("top",  (event.pageY + 10) + "px")
+        .html(`
+          <strong>${d.Entity}</strong><br/>
+          Urban: ${d.Urban.toFixed(1)}%<br/>
+          GDI: ${d.gdi.toFixed(3)}<br/>
+          Region: ${d.region}
+        `);
+    })
+    .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
+
+  // legend
+  const regions = [...new Set(merged.map(d => d.region))].filter(Boolean);
+  const legend  = svg.append("g").attr("transform", `translate(${scatterWidth - 120}, 0)`);
+  regions.forEach((r, i) => {
+    legend.append("circle").attr("cx", 6).attr("cy", i * 20).attr("r", 5).attr("fill", colorScale(r));
+    legend.append("text").attr("x", 16).attr("y", i * 20 + 4).attr("font-size", "10px").text(r);
+  });
+}
+/*
+function mergeDatasets(matData, urbData) {
+
+  const urbMap = new Map();
+  urbData.forEach(d => {
+    urbMap.set(`${d.Entity}-${d.Year}`, d.GDP);
+  });
+
+  const merged = matData
+    .filter(d => urbMap.has(`${d.Entity}-${d.Year}`))
+    .map(d => ({
+      Entity: d.Entity,
+      Year: d.Year,
+    }));
+
+  return merged;
+}
+
+function mergeDatasets(matData, urbData) {
+
+  // Create lookup: "Entity-Year" → GDP value
+  const urbMap = new Map();
+
+  urbData.forEach(d => {
+    urbMap.set(`${d.Entity}-${d.Year}`, d.GDP);
+  });
+
+  // Merge GDP into income records
+  const merged = matData
+    .filter(d => urbMap.has(`${d.Entity}-${d.Year}`)) // keep only matches
+    .map(d => ({
+      Entity: d.Entity,
+      Year: d.Year,
+    }));
+
+  return merged;
+}
 function drawChart2(data) {
 
   const svg = d3.select("body")
@@ -540,3 +662,4 @@ function drawMergedChart(data) {
       d3.select("#tooltip").style("display", "none");
     });
 }
+    */

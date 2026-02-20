@@ -33,7 +33,8 @@ d3.csv("data/share-urban-and-rural-population.csv").then(data => {
   });
 
   //drawUrbChart(data);
-  drawUrbBarChart(data);  
+  drawUrbBarChart(data);
+  drawRuralBarChart(data)  
 
 }).catch(error => {
   console.error("Error loading data:", error);
@@ -85,10 +86,9 @@ Promise.all([
 
 
 
-// ---- BAR CHART: Urban vs Rural share per country (latest year) ----
+// ---- Histogram number of Urban share per number of country (latest year) ----
 function drawUrbBarChart(data) {
 
-  // Keep only the latest year per country, exclude aggregate regions
   const latest = new Map();
   data.forEach(d => {
     if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
@@ -96,8 +96,211 @@ function drawUrbBarChart(data) {
     if (!prev || d.Year > prev.Year) latest.set(d.Entity, d);
   });
 
+  const countries = Array.from(latest.values());
+
+  // bin countries into 10% urbanization ranges: 0-10, 10-20, ... 90-100
+  const binSize = 10;
+  const bins = d3.range(0, 100, binSize).map(start => ({
+    label: `${start}–${start + binSize}%`,
+    min: start,
+    max: start + binSize,
+    countries: countries.filter(d => d.Urban >= start && d.Urban < start + binSize)
+  }));
+  // include 100% in the last bin
+  bins[bins.length - 1].countries.push(...countries.filter(d => d.Urban === 100));
+
+  const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
+  const barWidth  = 800;
+  const barHeight = 400;
+  const iW = barWidth  - barMargin.left - barMargin.right;
+  const iH = barHeight - barMargin.top  - barMargin.bottom;
+
+  const svg = d3.select("body")
+    .append("svg")
+    .attr("width",  barWidth)
+    .attr("height", barHeight)
+    .append("g")
+    .attr("transform", `translate(${barMargin.left},${barMargin.top})`);
+
+  // title
+  svg.append("text")
+    .attr("x", iW / 2).attr("y", -14)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "14px").attr("font-weight", "bold")
+    .text("Number of Countries by Urbanization Range (2024)");
+
+  const x = d3.scaleBand()
+    .domain(bins.map(b => b.label))
+    .range([0, iW])
+    .padding(0.15);
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(bins, b => b.countries.length)]).nice()
+    .range([iH, 0]);
+
+  // gridlines
+  svg.append("g")
+    .call(d3.axisLeft(y).tickSize(-iW).tickFormat(""))
+    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
+    .call(g => g.select(".domain").remove());
+
+  // bars
+  svg.selectAll(".bar")
+    .data(bins)
+    .join("rect")
+    .attr("class", "bar")
+    .attr("x", b => x(b.label))
+    .attr("y", b => y(b.countries.length))
+    .attr("width", x.bandwidth())
+    .attr("height", b => iH - y(b.countries.length))
+    .attr("fill", "#2196f3")
+    .on("mouseover", (event, b) => {
+      d3.select("#tooltip")
+        .style("display", "block")
+        .style("left", (event.pageX + 10) + "px")
+        .style("top",  (event.pageY + 10) + "px")
+        .html(`
+          <strong>${b.label} Urban</strong><br/>
+          Countries: ${b.countries.length}<br/>
+          <small>${b.countries.map(d => d.Entity).join(", ")}</small>
+        `);
+    })
+    .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
+
+  // y axis
+  svg.append("g")
+    .call(d3.axisLeft(y).tickFormat(d => d).tickSize(0))
+    .call(g => g.select(".domain").remove())
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2).attr("y", -45)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text("Number of Countries");
+
+  // x axis
+  svg.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x).tickSize(0))
+    .call(g => g.select(".domain").remove())
+    .append("text")
+    .attr("x", iW / 2).attr("y", 45)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text("Urban Population %");
+}
+
+function drawRuralBarChart(data) {
+
+  const latest = new Map();
+  data.forEach(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+    const prev = latest.get(d.Entity);
+    if (!prev || d.Year > prev.Year) latest.set(d.Entity, d);
+  });
+
+  const countries = Array.from(latest.values());
+
+  // bin countries into 10% urbanization ranges: 0-10, 10-20, ... 90-100
+  const binSize = 10;
+  const bins = d3.range(0, 100, binSize).map(start => ({
+    label: `${start}–${start + binSize}%`,
+    min: start,
+    max: start + binSize,
+    countries: countries.filter(d => d.Rural >= start && d.Rural < start + binSize)
+  }));
+  // include 100% in the last bin
+  bins[bins.length - 1].countries.push(...countries.filter(d => d.Rural === 100));
+
+  const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
+  const barWidth  = 800;
+  const barHeight = 400;
+  const iW = barWidth  - barMargin.left - barMargin.right;
+  const iH = barHeight - barMargin.top  - barMargin.bottom;
+
+  const svg = d3.select("body")
+    .append("svg")
+    .attr("width",  barWidth)
+    .attr("height", barHeight)
+    .append("g")
+    .attr("transform", `translate(${barMargin.left},${barMargin.top})`);
+
+  // title
+  svg.append("text")
+    .attr("x", iW / 2).attr("y", -14)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "14px").attr("font-weight", "bold")
+    .text("Number of Countries by Ruralization Range (2024)");
+
+  const x = d3.scaleBand()
+    .domain(bins.map(b => b.label))
+    .range([0, iW])
+    .padding(0.15);
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(bins, b => b.countries.length)]).nice()
+    .range([iH, 0]);
+
+  // gridlines
+  svg.append("g")
+    .call(d3.axisLeft(y).tickSize(-iW).tickFormat(""))
+    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
+    .call(g => g.select(".domain").remove());
+
+  // bars
+  svg.selectAll(".bar")
+    .data(bins)
+    .join("rect")
+    .attr("class", "bar")
+    .attr("x", b => x(b.label))
+    .attr("y", b => y(b.countries.length))
+    .attr("width", x.bandwidth())
+    .attr("height", b => iH - y(b.countries.length))
+    .attr("fill", "#f37921")
+    .on("mouseover", (event, b) => {
+      d3.select("#tooltip")
+        .style("display", "block")
+        .style("left", (event.pageX + 10) + "px")
+        .style("top",  (event.pageY + 10) + "px")
+        .html(`
+          <strong>${b.label} Rural</strong><br/>
+          Countries: ${b.countries.length}<br/>
+          <small>${b.countries.map(d => d.Entity).join(", ")}</small>
+        `);
+    })
+    .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
+
+  // y axis
+  svg.append("g")
+    .call(d3.axisLeft(y).tickFormat(d => d).tickSize(0))
+    .call(g => g.select(".domain").remove())
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2).attr("y", -45)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text("Number of Countries");
+
+  // x axis
+  svg.append("g")
+    .attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(x).tickSize(0))
+    .call(g => g.select(".domain").remove())
+    .append("text")
+    .attr("x", iW / 2).attr("y", 45)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text("Rural Population %");
+}
+
+function drawGenderBarChart(data) {
+
+  const latest = new Map();
+  data.forEach(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+    if (!d.gdi) return; // skip rows with no GDI value
+    const prev = latest.get(d.Entity);
+    if (!prev || d.Year > prev.Year) latest.set(d.Entity, d);
+  });
+
   const barData = Array.from(latest.values())
-    .sort((a, b) => b.Urban - a.Urban);
+    .sort((a, b) => b.gdi - a.gdi); // was b.gender, should be b.gdi
 
   const barMargin = { top: 40, right: 20, bottom: 100, left: 45 };
   const barWidth  = Math.max(barData.length * 26, 600);
@@ -112,71 +315,48 @@ function drawUrbBarChart(data) {
     .append("g")
     .attr("transform", `translate(${barMargin.left},${barMargin.top})`);
 
-  // title
   svg.append("text")
-    .attr("x", iW / 2)
-    .attr("y", -14)
+    .attr("x", iW / 2).attr("y", -14)
     .attr("text-anchor", "middle")
-    .attr("font-size", "14px")
-    .attr("font-weight", "bold")
-    .text("Urban vs Rural Population Share by Country (2024)");
+    .attr("font-size", "14px").attr("font-weight", "bold")
+    .text("Gender Development Index by Country (2024)"); 
 
   const x = d3.scaleBand()
     .domain(barData.map(d => d.Entity))
-    .range([0, iW])
-    .padding(0.15);
+    .range([0, iW]).padding(0.15);
 
   const y = d3.scaleLinear()
-    .domain([0, 100])
+    .domain([0, 1.1]) // GDI ranges 0–~1.1
     .range([iH, 0]);
 
   // gridlines
   svg.append("g")
-    .call(d3.axisLeft(y).tickValues([25, 50, 75, 100]).tickSize(-iW).tickFormat(""))
+    .call(d3.axisLeft(y).tickValues([0.25, 0.5, 0.75, 1.0]).tickSize(-iW).tickFormat(""))
     .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
     .call(g => g.select(".domain").remove());
 
-  // rural bars (top portion)
-  svg.selectAll(".bar-rural")
+  // bars
+  svg.selectAll(".bar-gender")
     .data(barData)
     .join("rect")
-    .attr("class", "bar-rural")
+    .attr("class", "bar-gender")
     .attr("x", d => x(d.Entity))
-    .attr("y", 0)
+    .attr("y", d => y(d.gdi)) 
     .attr("width", x.bandwidth())
-    .attr("height", d => y(d.Urban))
-    .attr("fill", "#f4a261")
-    .on("mouseover", (event, d) => {
-      d3.select("#tooltip")
-        .style("display", "block")
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY + 10) + "px")
-        .html(`<strong>${d.Entity}</strong><br/>Urban: ${d.Urban.toFixed(1)}%<br/>Rural: ${d.Rural.toFixed(1)}%`);
-    })
-    .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
-
-  // urban bars (bottom portion)
-  svg.selectAll(".bar-urban")
-    .data(barData)
-    .join("rect")
-    .attr("class", "bar-urban")
-    .attr("x", d => x(d.Entity))
-    .attr("y", d => y(d.Urban))
-    .attr("width", x.bandwidth())
-    .attr("height", d => iH - y(d.Urban))
+    .attr("height", d => iH - y(d.gdi)) 
     .attr("fill", "#2196f3")
     .on("mouseover", (event, d) => {
       d3.select("#tooltip")
         .style("display", "block")
         .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY + 10) + "px")
-        .html(`<strong>${d.Entity}</strong><br/>Urban: ${d.Urban.toFixed(1)}%<br/>Rural: ${d.Rural.toFixed(1)}%`);
+        .style("top",  (event.pageY + 10) + "px")
+        .html(`<strong>${d.Entity}</strong><br/>GDI: ${d.gdi.toFixed(3)}<br/>Year: ${d.Year}`); 
     })
     .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
 
   // y axis
   svg.append("g")
-    .call(d3.axisLeft(y).tickFormat(d => d + "%").tickSize(0))
+    .call(d3.axisLeft(y).tickFormat(d => d.toFixed(2)).tickSize(0)) 
     .call(g => g.select(".domain").remove());
 
   // x axis
@@ -186,17 +366,13 @@ function drawUrbBarChart(data) {
     .call(g => g.select(".domain").remove())
     .selectAll("text")
     .attr("transform", "rotate(-50)")
-    .attr("dx", "-0.6em")
-    .attr("dy", "0.15em")
-    .style("text-anchor", "end")
-    .style("font-size", "9px");
+    .attr("dx", "-0.6em").attr("dy", "0.15em")
+    .style("text-anchor", "end").style("font-size", "9px");
 
   // legend
-  const legend = svg.append("g").attr("transform", `translate(${iW - 120}, -28)`);
-  [{ color: "#2196f3", label: "Urban" }, { color: "#f4a261", label: "Rural" }].forEach((item, i) => {
-    legend.append("rect").attr("x", i * 70).attr("width", 12).attr("height", 12).attr("fill", item.color);
-    legend.append("text").attr("x", i * 70 + 16).attr("y", 10).attr("font-size", "11px").text(item.label);
-  });
+  const legend = svg.append("g").attr("transform", `translate(${iW - 140}, -28)`);
+  legend.append("rect").attr("width", 12).attr("height", 12).attr("fill", "#2196f3");
+  legend.append("text").attr("x", 16).attr("y", 10).attr("font-size", "11px").text("Gender Development Index");
 }
 
 function drawGenderBarChart(data) {

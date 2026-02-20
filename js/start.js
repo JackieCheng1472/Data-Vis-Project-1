@@ -53,10 +53,35 @@ Promise.all([
   genderData.forEach(d => {
     d.Year   = +d.Year;
     d.gdi    = +d["Gender Development Index"];
+    d.gdp    = +d["GDP per capita"];
   });
 
   drawScatterChart(urbData, genderData);  // ← correct datasets now
 });
+
+Promise.all([
+  d3.json('data/worldShapes.json'),
+  d3.csv('data/gender-development-index-vs-gdp-per-capita.csv')
+]).then(data => {
+  const geoData = data[0];
+  const countryData = data[1];
+
+
+  // Combine both datasets by adding the population density to the TopoJSON file
+  geoData.objects.collection.geometries.forEach(d => {
+    for (let i = 0; i < countryData.length; i++) {
+      if (d.properties.name == countryData[i].region) {
+        d.properties.genderindex = +countryData[i]["Gender Development Index"];
+      }
+    }
+  });
+
+
+  const choroplethMap = new ChoroplethMap({ 
+    parentElement: '#map'
+  }, geoData);
+})
+.catch(error => console.error(error));
 
 
 
@@ -287,6 +312,7 @@ function drawScatterChart(urbData, genderData) {
       Entity: entity,
       Urban:  u.Urban,
       gdi:    g.gdi,
+      gdp:    g.gdp,
       region: g.region
     });
   });
@@ -316,6 +342,10 @@ function drawScatterChart(urbData, genderData) {
   const y = d3.scaleLinear()
     .domain(d3.extent(merged, d => d.gdi)).nice()
     .range([scatterHeight, 0]);
+
+  const rScale = d3.scaleLinear()
+    .domain(d3.extent(merged, d => d.gdp))
+    .range([4, 20]);
 
   const colorScale = d3.scaleOrdinal(d3.schemeTableau10)
     .domain([...new Set(merged.map(d => d.region))]);
@@ -356,7 +386,7 @@ function drawScatterChart(urbData, genderData) {
     .attr("class", "dot")
     .attr("cx", d => x(d.Urban))
     .attr("cy", d => y(d.gdi))
-    .attr("r", 5)
+    .attr("r", d => 5 + d.gdp / 10000) // size by GDP per capita
     .attr("fill", d => colorScale(d.region))
     .attr("opacity", 0.75)
     .attr("stroke", "white")
@@ -382,6 +412,12 @@ function drawScatterChart(urbData, genderData) {
     legend.append("circle").attr("cx", 6).attr("cy", i * 20).attr("r", 5).attr("fill", colorScale(r));
     legend.append("text").attr("x", 16).attr("y", i * 20 + 4).attr("font-size", "10px").text(r);
   });
+}
+
+function drawChoropleth(data) {
+  // This function would create a choropleth map showing the relationship between urbanization and gender development index across countries. 
+  // You would need to load a GeoJSON file for country boundaries and join it with the data.
+  // Then use D3's geoPath and color scales to draw the map.
 }
 /*
 function mergeDatasets(matData, urbData) {

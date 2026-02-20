@@ -14,7 +14,7 @@ d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {
     d.pop    = +d["Population"];
   });
 
-  //drawChart2(data);
+  
   drawGenderBarChart(data);
 
 }).catch(error => {
@@ -32,7 +32,7 @@ d3.csv("data/share-urban-and-rural-population.csv").then(data => {
     d.Rural = +d["Rural"];
   });
 
-  //drawUrbChart(data);
+  
   drawUrbBarChart(data);
   drawRuralBarChart(data)  
 
@@ -110,12 +110,12 @@ function drawUrbBarChart(data) {
   bins[bins.length - 1].countries.push(...countries.filter(d => d.Urban === 100));
 
   const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
-  const barWidth  = 800;
+  const barWidth  = 600;
   const barHeight = 400;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
-  const svg = d3.select("body")
+  const svg = d3.select("#row-1")
     .append("svg")
     .attr("width",  barWidth)
     .attr("height", barHeight)
@@ -211,12 +211,12 @@ function drawRuralBarChart(data) {
   bins[bins.length - 1].countries.push(...countries.filter(d => d.Rural === 100));
 
   const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
-  const barWidth  = 800;
+  const barWidth  = 600;
   const barHeight = 400;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
-  const svg = d3.select("body")
+  const svg = d3.select("#row-1")
     .append("svg")
     .attr("width",  barWidth)
     .attr("height", barHeight)
@@ -294,21 +294,32 @@ function drawGenderBarChart(data) {
   const latest = new Map();
   data.forEach(d => {
     if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    if (!d.gdi) return; // skip rows with no GDI value
+    if (!d.gdi) return;
     const prev = latest.get(d.Entity);
     if (!prev || d.Year > prev.Year) latest.set(d.Entity, d);
   });
 
-  const barData = Array.from(latest.values())
-    .sort((a, b) => b.gdi - a.gdi); // was b.gender, should be b.gdi
+  const countries = Array.from(latest.values());
 
-  const barMargin = { top: 40, right: 20, bottom: 100, left: 45 };
-  const barWidth  = Math.max(barData.length * 26, 600);
+  // bin into 0.1 GDI ranges: 0–0.1, 0.1–0.2, ... 1.0–1.1
+  const binSize = 0.1;
+  const bins = d3.range(0, 1.1, binSize).map(start => {
+    const end = +(start + binSize).toFixed(1);
+    return {
+      label: `${start.toFixed(1)}–${end.toFixed(1)}`,
+      min: start,
+      max: end,
+      countries: countries.filter(d => d.gdi >= start && d.gdi < end)
+    };
+  });
+
+  const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
+  const barWidth  = 800;
   const barHeight = 400;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
-  const svg = d3.select("body")
+  const svg = d3.select("#row-2")
     .append("svg")
     .attr("width",  barWidth)
     .attr("height", barHeight)
@@ -319,147 +330,69 @@ function drawGenderBarChart(data) {
     .attr("x", iW / 2).attr("y", -14)
     .attr("text-anchor", "middle")
     .attr("font-size", "14px").attr("font-weight", "bold")
-    .text("Gender Development Index by Country (2024)"); 
+    .text("Number of Countries by Gender Development Index Range");
 
   const x = d3.scaleBand()
-    .domain(barData.map(d => d.Entity))
-    .range([0, iW]).padding(0.15);
+    .domain(bins.map(b => b.label))
+    .range([0, iW])
+    .padding(0.15);
 
   const y = d3.scaleLinear()
-    .domain([0, 1.1]) // GDI ranges 0–~1.1
+    .domain([0, d3.max(bins, b => b.countries.length)]).nice()
     .range([iH, 0]);
 
   // gridlines
   svg.append("g")
-    .call(d3.axisLeft(y).tickValues([0.25, 0.5, 0.75, 1.0]).tickSize(-iW).tickFormat(""))
+    .call(d3.axisLeft(y).tickSize(-iW).tickFormat(""))
     .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
     .call(g => g.select(".domain").remove());
 
-  // bars
+  
   svg.selectAll(".bar-gender")
-    .data(barData)
+    .data(bins)
     .join("rect")
     .attr("class", "bar-gender")
-    .attr("x", d => x(d.Entity))
-    .attr("y", d => y(d.gdi)) 
+    .attr("x", b => x(b.label))
+    .attr("y", b => y(b.countries.length))
     .attr("width", x.bandwidth())
-    .attr("height", d => iH - y(d.gdi)) 
+    .attr("height", b => iH - y(b.countries.length))
     .attr("fill", "#2196f3")
-    .on("mouseover", (event, d) => {
+    .on("mouseover", (event, b) => {
       d3.select("#tooltip")
         .style("display", "block")
         .style("left", (event.pageX + 10) + "px")
         .style("top",  (event.pageY + 10) + "px")
-        .html(`<strong>${d.Entity}</strong><br/>GDI: ${d.gdi.toFixed(3)}<br/>Year: ${d.Year}`); 
+        .html(`
+          <strong>GDI ${b.label}</strong><br/>
+          Countries: ${b.countries.length}<br/>
+          <small>${b.countries.map(d => d.Entity).join(", ")}</small>
+        `);
     })
     .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
 
   // y axis
   svg.append("g")
-    .call(d3.axisLeft(y).tickFormat(d => d.toFixed(2)).tickSize(0)) 
-    .call(g => g.select(".domain").remove());
+    .call(d3.axisLeft(y).tickFormat(d => d).tickSize(0))
+    .call(g => g.select(".domain").remove())
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2).attr("y", -45)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text("Number of Countries");
 
   // x axis
   svg.append("g")
     .attr("transform", `translate(0,${iH})`)
     .call(d3.axisBottom(x).tickSize(0))
     .call(g => g.select(".domain").remove())
-    .selectAll("text")
-    .attr("transform", "rotate(-50)")
-    .attr("dx", "-0.6em").attr("dy", "0.15em")
-    .style("text-anchor", "end").style("font-size", "9px");
-
-  // legend
-  const legend = svg.append("g").attr("transform", `translate(${iW - 140}, -28)`);
-  legend.append("rect").attr("width", 12).attr("height", 12).attr("fill", "#2196f3");
-  legend.append("text").attr("x", 16).attr("y", 10).attr("font-size", "11px").text("Gender Development Index");
+    .append("text")
+    .attr("x", iW / 2).attr("y", 45)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text("Gender Development Index Range");
 }
 
-function drawGenderBarChart(data) {
 
-  const latest = new Map();
-  data.forEach(d => {
-    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    if (!d.gdi) return; // skip rows with no GDI value
-    const prev = latest.get(d.Entity);
-    if (!prev || d.Year > prev.Year) latest.set(d.Entity, d);
-  });
 
-  const barData = Array.from(latest.values())
-    .sort((a, b) => b.gdi - a.gdi); // was b.gender, should be b.gdi
-
-  const barMargin = { top: 40, right: 20, bottom: 100, left: 45 };
-  const barWidth  = Math.max(barData.length * 26, 600);
-  const barHeight = 400;
-  const iW = barWidth  - barMargin.left - barMargin.right;
-  const iH = barHeight - barMargin.top  - barMargin.bottom;
-
-  const svg = d3.select("body")
-    .append("svg")
-    .attr("width",  barWidth)
-    .attr("height", barHeight)
-    .append("g")
-    .attr("transform", `translate(${barMargin.left},${barMargin.top})`);
-
-  svg.append("text")
-    .attr("x", iW / 2).attr("y", -14)
-    .attr("text-anchor", "middle")
-    .attr("font-size", "14px").attr("font-weight", "bold")
-    .text("Gender Development Index by Country (2024)"); 
-
-  const x = d3.scaleBand()
-    .domain(barData.map(d => d.Entity))
-    .range([0, iW]).padding(0.15);
-
-  const y = d3.scaleLinear()
-    .domain([0, 1.1]) // GDI ranges 0–~1.1
-    .range([iH, 0]);
-
-  // gridlines
-  svg.append("g")
-    .call(d3.axisLeft(y).tickValues([0.25, 0.5, 0.75, 1.0]).tickSize(-iW).tickFormat(""))
-    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
-    .call(g => g.select(".domain").remove());
-
-  // bars
-  svg.selectAll(".bar-gender")
-    .data(barData)
-    .join("rect")
-    .attr("class", "bar-gender")
-    .attr("x", d => x(d.Entity))
-    .attr("y", d => y(d.gdi)) 
-    .attr("width", x.bandwidth())
-    .attr("height", d => iH - y(d.gdi)) 
-    .attr("fill", "#2196f3")
-    .on("mouseover", (event, d) => {
-      d3.select("#tooltip")
-        .style("display", "block")
-        .style("left", (event.pageX + 10) + "px")
-        .style("top",  (event.pageY + 10) + "px")
-        .html(`<strong>${d.Entity}</strong><br/>GDI: ${d.gdi.toFixed(3)}<br/>Year: ${d.Year}`); 
-    })
-    .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
-
-  // y axis
-  svg.append("g")
-    .call(d3.axisLeft(y).tickFormat(d => d.toFixed(2)).tickSize(0)) 
-    .call(g => g.select(".domain").remove());
-
-  // x axis
-  svg.append("g")
-    .attr("transform", `translate(0,${iH})`)
-    .call(d3.axisBottom(x).tickSize(0))
-    .call(g => g.select(".domain").remove())
-    .selectAll("text")
-    .attr("transform", "rotate(-50)")
-    .attr("dx", "-0.6em").attr("dy", "0.15em")
-    .style("text-anchor", "end").style("font-size", "9px");
-
-  // legend
-  const legend = svg.append("g").attr("transform", `translate(${iW - 140}, -28)`);
-  legend.append("rect").attr("width", 12).attr("height", 12).attr("fill", "#2196f3");
-  legend.append("text").attr("x", 16).attr("y", 10).attr("font-size", "11px").text("Gender Development Index");
-}
 
 function drawScatterChart(urbData, genderData) {
 
@@ -595,283 +528,3 @@ function drawChoropleth(data) {
   // You would need to load a GeoJSON file for country boundaries and join it with the data.
   // Then use D3's geoPath and color scales to draw the map.
 }
-/*
-function mergeDatasets(matData, urbData) {
-
-  const urbMap = new Map();
-  urbData.forEach(d => {
-    urbMap.set(`${d.Entity}-${d.Year}`, d.GDP);
-  });
-
-  const merged = matData
-    .filter(d => urbMap.has(`${d.Entity}-${d.Year}`))
-    .map(d => ({
-      Entity: d.Entity,
-      Year: d.Year,
-    }));
-
-  return merged;
-}
-
-function mergeDatasets(matData, urbData) {
-
-  // Create lookup: "Entity-Year" → GDP value
-  const urbMap = new Map();
-
-  urbData.forEach(d => {
-    urbMap.set(`${d.Entity}-${d.Year}`, d.GDP);
-  });
-
-  // Merge GDP into income records
-  const merged = matData
-    .filter(d => urbMap.has(`${d.Entity}-${d.Year}`)) // keep only matches
-    .map(d => ({
-      Entity: d.Entity,
-      Year: d.Year,
-    }));
-
-  return merged;
-}
-function drawChart2(data) {
-
-  const svg = d3.select("body")
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  // ---- SCALES ----
-  const xScale = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.Year))
-    .range([0, width]);
-
-  const yScale = d3.scaleLinear()
-    .domain([
-      d3.min(data, d => d.GDP),
-      d3.max(data, d => d.GDP)
-    ])
-    .nice()
-    .range([height, 0]);
-
-  const rScale = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.GDP))
-    .range([4, 20]);
-
-  const colorScale = d3.scaleOrdinal(d3.schemeTableau10)
-    .domain([...new Set(data.map(d => d.Entity))]);
-
-  // ---- AXES ----
-  const xAxis = d3.axisBottom(xScale).tickFormat(d3.format("d"));
-  const yAxis = d3.axisLeft(yScale);
-
-  svg.append("g")
-    .attr("transform", `translate(0,${height})`)
-    .call(xAxis)
-    .append("text")
-    .attr("x", width / 2)
-    .attr("y", 40)
-    .attr("fill", "black")
-    .attr("text-anchor", "middle")
-    .text("Year");
-
-  svg.append("g")
-    .call(yAxis)
-    .append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("x", -height / 2)
-    .attr("y", -50)
-    .attr("fill", "black")
-    .attr("text-anchor", "middle")
-    .text("Ruralization or Urbanization");
-
-  // ---- CIRCLES ----
-  const circles = svg.selectAll("circle")
-    .data(data)
-    .enter()
-    .append("circle")
-    .attr("cx", d => xScale(d.Year))
-    .attr("cy", d => yScale(d.GDP))
-    .attr("r", d => rScale(d.GDP))
-    .attr("fill", d => colorScale(d.Entity))
-    .attr("opacity", 0.8)
-    .attr("stroke", "gray")
-    .attr("stroke-width", 1.5);
-
-  circles
-    .on("mouseover", (event, d) => {
-      d3.select("#tooltip")
-        .style("display", "block")
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY + 10) + "px")
-        .html(`
-          <strong>${d.Entity}</strong><br/>
-          Year: ${d.Year}<br/>
-          GDP per capita: $${d3.format(",")(d.GDP)}
-        `);
-    })
-    .on("mouseleave", () => {
-      d3.select("#tooltip").style("display", "none");
-    });
-
-  
-}
-
-function drawUrbChart(data) {
-
-  const svg = d3.select("body")
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  // ---- SCALES ----
-  const xScale = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.Year))
-    .range([0, width]);
-
-  const yScale = d3.scaleLinear()
-    .domain([
-      d3.min(data, d => d.Urban),
-      d3.max(data, d => d.Urban)
-    ])
-    .nice()
-    .range([height, 0]);
-
-  const rScale = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.Urban))
-    .range([0, 200]);
-
-  const colorScale = d3.scaleOrdinal(d3.schemeTableau10)
-    .domain([...new Set(data.map(d => d.Entity))]);
-
-  // ---- AXES ----
-  const xAxis = d3.axisBottom(xScale).tickFormat(d3.format("d"));
-  const yAxis = d3.axisLeft(yScale);
-
-  svg.append("g")
-    .attr("transform", `translate(0,${height})`)
-    .call(xAxis)
-    .append("text")
-    .attr("x", width / 2)
-    .attr("y", 40)
-    .attr("fill", "black")
-    .attr("text-anchor", "middle")
-    .text("Year");
-
-  svg.append("g")
-    .call(yAxis)
-    .append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("x", -height / 2)
-    .attr("y", -50)
-    .attr("fill", "black")
-    .attr("text-anchor", "middle")
-    .text("GDP per capita");
-
-  // ---- CIRCLES ----
-  const circles = svg.selectAll("circle")
-    .data(data)
-    .enter()
-    .append("circle")
-    .attr("cx", d => xScale(d.Year))
-    .attr("cy", d => yScale(d.Urban))
-    .attr("r", d => rScale(d.Urban / 100))
-    .attr("fill", d => colorScale(d.Entity))
-    .attr("opacity", 0.8)
-    .attr("stroke", "gray")
-    .attr("stroke-width", 1.5);
-
-  circles
-    .on("mouseover", (event, d) => {
-      d3.select("#tooltip")
-        .style("display", "block")
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY + 10) + "px")
-        .html(`
-          <strong>${d.Entity}</strong><br/>
-          Year: ${d.Year}<br/>
-          GDP per capita: $${d3.format(",")(d.GDP)}
-        `);
-    })
-    .on("mouseleave", () => {
-      d3.select("#tooltip").style("display", "none");
-    });
-}
-
-
-function drawMergedChart(data) {
-
-  const svg = d3.select("body")
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  // ---- SCALES ----
-  const xScale = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.GDP))
-    .nice()
-    .range([0, width]);
-
-  const yScale = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.Share))
-    .nice()
-    .range([height, 0]);
-
-  const colorScale = d3.scaleOrdinal(d3.schemeTableau10)
-    .domain([...new Set(data.map(d => d.Entity))]);
-
-  // ---- AXES ----
-  svg.append("g")
-    .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(xScale))
-    .append("text")
-    .attr("x", width / 2)
-    .attr("y", 40)
-    .attr("fill", "black")
-    .attr("text-anchor", "middle")
-    .text("gdp per capita");
-
-  svg.append("g")
-    .call(d3.axisLeft(yScale))
-    .append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("x", -height / 2)
-    .attr("y", -50)
-    .attr("fill", "black")
-    .attr("text-anchor", "middle")
-    .text("rulization or Urbanization");
-
-  // ---- POINTS ----
-  const circles = svg.selectAll("circle")
-    .data(data)
-    .enter()
-    .append("circle")
-    .attr("cx", d => xScale(d.GDP))
-    .attr("cy", d => yScale(d.Share))
-    .attr("r", 5)
-    .attr("fill", d => colorScale(d.Entity))
-    .attr("opacity", 0.7);
-
-  // ---- TOOLTIP ----
-  circles
-    .on("mouseover", (event, d) => {
-      d3.select("#tooltip")
-        .style("display", "block")
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY + 10) + "px")
-        .html(`
-          <strong>${d.Entity}</strong><br/>
-          Year: ${d.Year}<br/>
-          GDP per capita: $${d3.format(",")(d.GDP)}<br/>
-          Top 1% income share: ${d.Share}%
-        `);
-    })
-    .on("mouseleave", () => {
-      d3.select("#tooltip").style("display", "none");
-    });
-}
-    */

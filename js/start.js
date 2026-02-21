@@ -67,22 +67,26 @@ Promise.all([
   const geoData = data[0];
   const countryData = data[1];
 
+  console.log("geoData", geoData);           
+  console.log(countryData);
 
-  // Combine both datasets by adding the population density to the TopoJSON file
-  geoData.objects.collection.geometries.forEach(d => {
+  // GeoJSON uses 
+  geoData.features.forEach(d => {
     for (let i = 0; i < countryData.length; i++) {
-      if (d.properties.name == countryData[i].region) {
+      if (d.properties.name == countryData[i].Entity) {
         d.properties.genderindex = +countryData[i]["Gender Development Index"];
       }
     }
-  });
+  })
 
-
+  console.log("geoData", geoData.features);
   const choroplethMap = new ChoroplethMap({ 
     parentElement: '#map'
   }, geoData);
 })
 .catch(error => console.error(error));
+
+
 
 
 

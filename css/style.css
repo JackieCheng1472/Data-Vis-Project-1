@@ -1,6 +1,14 @@
 .header {
   text-align: center;
 }
+.svg{
+  background-color:rgb(255, 255, 255);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
 
 #dashboard {
   display: flex;
@@ -12,7 +20,7 @@
 }
 
 #row-1, #row-2 {
-  background-color:azure;
+  
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -20,6 +28,12 @@
   flex-wrap: wrap;
   gap: 80px;
   width: 100%;
+}
+
+#map {
+  width: 900px;
+  height: 500px;
+  border: 1px solid red; /* remove after testing */
 }
 
 #tooltip {

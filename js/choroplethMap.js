@@ -75,7 +75,7 @@ class ChoroplethMap {
   renderVis() {
     let vis = this;
 
-    // ← uses vis.data directly instead of geoData variable
+    
     vis.projection.fitSize([vis.width, vis.height], vis.data);
 
     const countryPath = vis.chart.selectAll('.country')

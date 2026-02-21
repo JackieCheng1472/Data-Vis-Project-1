@@ -2,6 +2,19 @@ const margin = { top: 40, right: 50, bottom: 50, left: 70 };
 const width = 1000 - margin.left - margin.right;
 const height = 600 - margin.top - margin.bottom;
 
+const nameMap = {
+  "USA": "United States",
+  "Russian Federation": "Russia",
+  "Republic of Korea": "South Korea",
+  "Czech Republic": "Czechia",
+  "Viet Nam": "Vietnam",
+  "Iran (Islamic Republic of)": "Iran",
+  "England": "United Kingdom",
+  "Greenland": "Greenland",
+  "Syrian Arab Republic": "Syria"
+  
+};
+
 d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {
 
   console.log("Data loaded:", data);
@@ -67,19 +80,30 @@ Promise.all([
   const geoData = data[0];
   const countryData = data[1];
 
-  console.log("geoData", geoData);           
-  console.log(countryData);
+  
+  const latest = new Map();
+  countryData.forEach(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+    if (!d["Gender Development Index"]) return; // skip rows with no GDI
+    const prev = latest.get(d.Entity);
+    if (!prev || +d.Year > +prev.Year) latest.set(d.Entity, d);
+  });
 
-  // GeoJSON uses 
+
   geoData.features.forEach(d => {
-    for (let i = 0; i < countryData.length; i++) {
-      if (d.properties.name == countryData[i].Entity) {
-        d.properties.genderindex = +countryData[i]["Gender Development Index"];
-      }
+    let m =false;
+    const lookupName = nameMap[d.properties.name] || d.properties.name;
+    const match = latest.get(lookupName);
+    
+    if (match) {
+      d.properties.genderindex = +match["Gender Development Index"];
+      m = true;
     }
-  })
+    if (!m) {
+      console.warn(`No GDI data for ${d.properties.name}`);
+    }
+  });
 
-  console.log("geoData", geoData.features);
   const choroplethMap = new ChoroplethMap({ 
     parentElement: '#map'
   }, geoData);

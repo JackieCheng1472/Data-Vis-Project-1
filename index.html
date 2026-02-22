@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D3 Project Starter Template</title>
-    <meta charset="UTF-8">
+    <title>Population distribution and GDP per capita</title>
     <link rel="icon" href="data:;base64,iVBORwOKGO=" />
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -13,18 +12,37 @@
         <h1>Population distribution and GDP per capita</h1>
         <h2>Jackie Cheng</h2>
     </div>
-    <!-- Add HTML content, SVG drawing area, ... -->
+
+   
+
     <div id="dashboard">
-        <div id="row-1"></div>
-        <div id="row-2"></div>
-        <div id="map"></div>
+
+        <div id="row-3">
+             <div id="slider-container">
+                <label for="year-slider">Year: <span id="year-label">2024</span></label>
+                <input type="range" id="year-slider" min="2000" max="2024" step="1" value="2024">
+            </div>
+        </div>
+        <div id="row-1">
+            <div id="panel-1"></div>
+            <div id="panel-2"></div>
+        </div>
+
+        <div id="row-2">
+            <div id="panel-3"></div>
+        </div>
+        
+
+        <div id="row-4">
+            <div id="map"></div>
+        </div>
+
     </div>
 
-    <!-- D3 bundle -->
-    <script src="js/d3.v6.min.js"></script>
+    <div id="tooltip"></div>
 
-    <!-- Our JS code - INCLUDING the new files-->
-    <script src="js/choroplethMap.js"></script>  
+    <script src="js/d3.v6.min.js"></script>
+    <script src="js/choroplethMap.js"></script>
     <script src="js/start.js"></script>
 </body>
 </html>

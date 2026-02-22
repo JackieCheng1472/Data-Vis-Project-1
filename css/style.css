@@ -2,7 +2,6 @@
   text-align: center;
 }
 .svg{
-  background-color:rgb(255, 255, 255);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -26,11 +25,31 @@
   justify-content: center;
   align-items: flex-start;
   flex-wrap: wrap;
-  gap: 80px;
+  gap: 60px;
   width: 100%;
 }
 
+#panel-1, #panel-2, #panel-3 {
+  background-color: rgb(255, 255, 255);
+  width: 510px;
+  height: 310px;
+  border: 1px solid red; /* remove after testing */
+}
+
+#slider-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+}
+
+#year-slider {
+  width: 300px;
+}
+
 #map {
+  background-color: rgb(255, 255, 255);
   width: 900px;
   height: 500px;
   border: 1px solid red; /* remove after testing */

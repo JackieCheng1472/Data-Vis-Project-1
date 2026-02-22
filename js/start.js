@@ -2,6 +2,9 @@ const margin = { top: 40, right: 50, bottom: 50, left: 70 };
 const width = 1000 - margin.left - margin.right;
 const height = 600 - margin.top - margin.bottom;
 
+let urbDataGlobal = [];
+let genderDataGlobal = [];
+
 const nameMap = {
   "USA": "United States",
   "Russian Federation": "Russia",
@@ -15,116 +18,119 @@ const nameMap = {
   
 };
 
+// ---- load gender data ----
 d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {
-
-  console.log("Data loaded:", data);
-
-  // ---- DATA PROCESSING ----
   data.forEach(d => {
     d.Year = +d.Year;
-    d.gdi    = +d["Gender Development Index"];
-    d.gdp    = +d["GDP per capita"];
-    d.pop    = +d["Population"];
+    d.gdi  = +d["Gender Development Index"];
+    d.gdp  = +d["GDP per capita"];
+    d.pop  = +d["Population"];
   });
 
+  genderDataGlobal = data;
+    // set slider range from available years
+  const years  = [...new Set(data.map(d => d.Year))].sort((a, b) => a - b);
+  const slider = document.getElementById("year-slider");
+  const label  = document.getElementById("year-label");
+  slider.min   = d3.min(years);
+  slider.max   = d3.max(years);
+  slider.value = d3.max(years);
+  label.textContent = d3.max(years);
+
   
-  drawGenderBarChart(data);
+  drawGenderBarChart(genderDataGlobal, d3.max(years));
+  // update on slider change — inside .then() so data is available
+  slider.addEventListener("input", function() {
+    const year = +this.value;
+    label.textContent = year;
+    drawUrbBarChart(urbDataGlobal, year);
+    drawRuralBarChart(urbDataGlobal, year);
+    drawGenderBarChart(genderDataGlobal, year);
+  });
 
-}).catch(error => {
-  console.error("Error loading data:", error);
-});
+}).catch(error => console.error("Error loading gender data:", error));
 
+// ---- load urban data ----
 d3.csv("data/share-urban-and-rural-population.csv").then(data => {
-
-  console.log("Data loaded:", data);
-
-  // ---- DATA PROCESSING ----
   data.forEach(d => {
-    d.Year = +d.Year;
-    d.Urban = +d["Urban"];
-    d.Rural = +d["Rural"];
-  });
-
-  
-  drawUrbBarChart(data);
-  drawRuralBarChart(data)  
-
-}).catch(error => {
-  console.error("Error loading data:", error);
-});
-
-Promise.all([
-  d3.csv("data/share-urban-and-rural-population.csv"),
-  d3.csv("data/gender-development-index-vs-gdp-per-capita.csv")
-]).then(([urbData, genderData]) => {
-
-  urbData.forEach(d => {
     d.Year  = +d.Year;
     d.Urban = +d["Urban"];
     d.Rural = +d["Rural"];
   });
 
-  genderData.forEach(d => {
-    d.Year   = +d.Year;
-    d.gdi    = +d["Gender Development Index"];
-    d.gdp    = +d["GDP per capita"];
-  });
+  urbDataGlobal = data;
 
-  drawScatterChart(urbData, genderData);  // ← correct datasets now
+
+  const years = [...new Set(data.map(d => d.Year))].sort((a, b) => a - b);
+  // initial draw
+  drawUrbBarChart(urbDataGlobal, d3.max(years));
+  drawRuralBarChart(urbDataGlobal, d3.max(years));
+
+  
+
+}).catch(error => console.error("Error loading urban data:", error));
+
+
+
+// ---- scatter ----
+Promise.all([
+  d3.csv("data/share-urban-and-rural-population.csv"),
+  d3.csv("data/gender-development-index-vs-gdp-per-capita.csv")
+]).then(([urbData, genderData]) => {
+  urbData.forEach(d => {
+    d.Year  = +d.Year;
+    d.Urban = +d["Urban"];
+    d.Rural = +d["Rural"];
+  });
+  genderData.forEach(d => {
+    d.Year = +d.Year;
+    d.gdi  = +d["Gender Development Index"];
+    d.gdp  = +d["GDP per capita"];
+  });
+  drawScatterChart(urbData, genderData);
 });
 
+// ---- choropleth ----
 Promise.all([
   d3.json('data/worldShapes.json'),
   d3.csv('data/gender-development-index-vs-gdp-per-capita.csv')
 ]).then(data => {
-  const geoData = data[0];
+  const geoData     = data[0];
   const countryData = data[1];
 
-  
   const latest = new Map();
   countryData.forEach(d => {
     if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    if (!d["Gender Development Index"]) return; // skip rows with no GDI
+    if (!d["Gender Development Index"]) return;
     const prev = latest.get(d.Entity);
     if (!prev || +d.Year > +prev.Year) latest.set(d.Entity, d);
   });
 
-
   geoData.features.forEach(d => {
-    let m =false;
     const lookupName = nameMap[d.properties.name] || d.properties.name;
     const match = latest.get(lookupName);
-    
     if (match) {
       d.properties.genderindex = +match["Gender Development Index"];
-      m = true;
-    }
-    if (!m) {
+    } else {
       console.warn(`No GDI data for ${d.properties.name}`);
     }
   });
 
-  const choroplethMap = new ChoroplethMap({ 
-    parentElement: '#map'
-  }, geoData);
-})
-.catch(error => console.error(error));
+  new ChoroplethMap({ parentElement: '#map' }, geoData);
+}).catch(error => console.error(error));
 
 
+// ---- Histograms ----
+function drawUrbBarChart(data, selectedYear) {
 
+  d3.select("#panel-1").selectAll("*").remove(); // clear before redraw
 
-
-// ---- Histogram number of Urban share per number of country (latest year) ----
-function drawUrbBarChart(data) {
-
-  const latest = new Map();
-  data.forEach(d => {
-    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    const prev = latest.get(d.Entity);
-    if (!prev || d.Year > prev.Year) latest.set(d.Entity, d);
+  const countries = data.filter(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return false;
+    return d.Year === selectedYear;
   });
 
-  const countries = Array.from(latest.values());
+  
 
   // bin countries into 10% urbanization ranges: 0-10, 10-20, ... 90-100
   const binSize = 10;
@@ -138,12 +144,12 @@ function drawUrbBarChart(data) {
   bins[bins.length - 1].countries.push(...countries.filter(d => d.Urban === 100));
 
   const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
-  const barWidth  = 600;
-  const barHeight = 400;
+  const barWidth  = 510;
+  const barHeight = 310;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
-  const svg = d3.select("#row-1")
+  const svg = d3.select("#panel-1")
     .append("svg")
     .attr("width",  barWidth)
     .attr("height", barHeight)
@@ -155,7 +161,7 @@ function drawUrbBarChart(data) {
     .attr("x", iW / 2).attr("y", -14)
     .attr("text-anchor", "middle")
     .attr("font-size", "14px").attr("font-weight", "bold")
-    .text("Number of Countries by Urbanization Range (2024)");
+    .text("Number of Countries by Urbanization Range " + `(${selectedYear})`);
 
   const x = d3.scaleBand()
     .domain(bins.map(b => b.label))
@@ -216,16 +222,14 @@ function drawUrbBarChart(data) {
     .text("Urban Population %");
 }
 
-function drawRuralBarChart(data) {
+function drawRuralBarChart(data, selectedYear) {
 
-  const latest = new Map();
-  data.forEach(d => {
-    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    const prev = latest.get(d.Entity);
-    if (!prev || d.Year > prev.Year) latest.set(d.Entity, d);
+  d3.select("#panel-2").selectAll("*").remove();
+
+  const countries = data.filter(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return false;
+    return d.Year === selectedYear;
   });
-
-  const countries = Array.from(latest.values());
 
   // bin countries into 10% urbanization ranges: 0-10, 10-20, ... 90-100
   const binSize = 10;
@@ -239,12 +243,12 @@ function drawRuralBarChart(data) {
   bins[bins.length - 1].countries.push(...countries.filter(d => d.Rural === 100));
 
   const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
-  const barWidth  = 600;
-  const barHeight = 400;
+  const barWidth  = 510;
+  const barHeight = 310;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
-  const svg = d3.select("#row-1")
+  const svg = d3.select("#panel-2")
     .append("svg")
     .attr("width",  barWidth)
     .attr("height", barHeight)
@@ -256,7 +260,7 @@ function drawRuralBarChart(data) {
     .attr("x", iW / 2).attr("y", -14)
     .attr("text-anchor", "middle")
     .attr("font-size", "14px").attr("font-weight", "bold")
-    .text("Number of Countries by Ruralization Range (2024)");
+    .text("Number of Countries by Ruralization Range (" + selectedYear + ")");
 
   const x = d3.scaleBand()
     .domain(bins.map(b => b.label))
@@ -317,17 +321,15 @@ function drawRuralBarChart(data) {
     .text("Rural Population %");
 }
 
-function drawGenderBarChart(data) {
+function drawGenderBarChart(data, selectedYear) {
 
-  const latest = new Map();
-  data.forEach(d => {
-    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    if (!d.gdi) return;
-    const prev = latest.get(d.Entity);
-    if (!prev || d.Year > prev.Year) latest.set(d.Entity, d);
+  d3.select("#panel-3").selectAll("*").remove();
+
+  const countries = data.filter(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return false;
+    if (!d.gdi) return false;
+    return d.Year === selectedYear;
   });
-
-  const countries = Array.from(latest.values());
 
   // bin into 0.1 GDI ranges: 0–0.1, 0.1–0.2, ... 1.0–1.1
   const binSize = 0.1;
@@ -342,12 +344,12 @@ function drawGenderBarChart(data) {
   });
 
   const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
-  const barWidth  = 800;
-  const barHeight = 400;
+  const barWidth  = 510;
+  const barHeight = 310;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
-  const svg = d3.select("#row-2")
+  const svg = d3.select("#panel-3")
     .append("svg")
     .attr("width",  barWidth)
     .attr("height", barHeight)
@@ -358,7 +360,7 @@ function drawGenderBarChart(data) {
     .attr("x", iW / 2).attr("y", -14)
     .attr("text-anchor", "middle")
     .attr("font-size", "14px").attr("font-weight", "bold")
-    .text("Number of Countries by Gender Development Index Range");
+    .text("Number of Countries by Gender Development Index Range (" + selectedYear + ")");
 
   const x = d3.scaleBand()
     .domain(bins.map(b => b.label))
@@ -421,7 +423,7 @@ function drawGenderBarChart(data) {
 
 
 
-
+// ---- Scatter plot ----
 function drawScatterChart(urbData, genderData) {
 
   // get latest year per country for urban data
@@ -470,7 +472,7 @@ function drawScatterChart(urbData, genderData) {
     .attr("x", scatterWidth / 2).attr("y", -14)
     .attr("text-anchor", "middle")
     .attr("font-size", "14px").attr("font-weight", "bold")
-    .text("Urban Population % vs Gender Development Index by Country (2024)");
+    .text("Urban Population % vs Gender Development Index by Country");
 
   const x = d3.scaleLinear()
     .domain([0, 100]).nice()
@@ -551,8 +553,12 @@ function drawScatterChart(urbData, genderData) {
   });
 }
 
-function drawChoropleth(data) {
-  // This function would create a choropleth map showing the relationship between urbanization and gender development index across countries. 
-  // You would need to load a GeoJSON file for country boundaries and join it with the data.
-  // Then use D3's geoPath and color scales to draw the map.
-}
+
+
+
+
+
+
+
+
+

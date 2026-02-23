@@ -17,7 +17,7 @@
   padding: 16px;
   background: #fff;
   margin-bottom: 10px;
-  border: 1px solid red; 
+ 
 }
 
 #attribute-selector {
@@ -46,7 +46,6 @@
 
 .y-btn {
   padding: 5px 10px;
-  border: 2px solid #e91e63;
   background: white;
   color: #e91e63;
   border-radius: 4px;
@@ -95,15 +94,13 @@
 #panel-1, #panel-2 {
   background-color: rgb(255, 255, 255);
   width: 510px;
-  height: 310px;
-  border: 1px solid red; 
+  height: 410px;
 }
 
  #panel-3, #plot {
   background-color: rgb(255, 255, 255);
   width: 510px;
   height: 410px;
-  border: 1px solid red; 
 }
 
 #slider-container {
@@ -120,9 +117,8 @@
 
 #map {
   background-color: rgb(255, 255, 255);
-  width: 900px;
-  height: 500px;
-  border: 1px solid red; 
+  width: 1080px;
+  height: 510px;
 }
 
 #tooltip {

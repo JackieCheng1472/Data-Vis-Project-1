@@ -5,8 +5,8 @@ class ChoroplethMap {
       
       parentElement: _config.parentElement,
       selectedYear:  _config.selectedYear || 2023,
-      containerWidth: _config.containerWidth || 900,
-      containerHeight: _config.containerHeight || 500,
+      containerWidth: _config.containerWidth || 1080,
+      containerHeight: _config.containerHeight || 510,
       margin: _config.margin || {top: 0, right: 0, bottom: 0, left: 0},
       tooltipPadding: 10,
       legendBottom: 50,

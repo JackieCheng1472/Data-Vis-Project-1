@@ -154,8 +154,8 @@ function drawUrbBarChart(data, selectedYear) {
   bins[bins.length - 1].countries.push(...countries.filter(d => d.Urban === 100));
 
   const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
-  const barWidth  = 510;
-  const barHeight = 310;
+  const barWidth  = 500;
+  const barHeight = 400;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
@@ -257,8 +257,8 @@ function drawRuralBarChart(data, selectedYear) {
   bins[bins.length - 1].countries.push(...countries.filter(d => d.Rural === 100));
 
   const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
-  const barWidth  = 510;
-  const barHeight = 310;
+  const barWidth  = 500;
+  const barHeight = 400;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 

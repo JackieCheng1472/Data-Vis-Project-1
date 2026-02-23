@@ -45,6 +45,7 @@ d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {
     drawUrbBarChart(urbDataGlobal, year);
     drawRuralBarChart(urbDataGlobal, year);
     drawGenderBarChart(genderDataGlobal, year);
+    drawScatterChart(urbDataGlobal, genderDataGlobal, year);
   });
 
 }).catch(error => console.error("Error loading gender data:", error));
@@ -79,7 +80,7 @@ Promise.all([
   urbData.forEach(d => { d.Year = +d.Year; d.Urban = +d["Urban"]; d.Rural = +d["Rural"]; });
   genderData.forEach(d => { d.Year = +d.Year; d.gdi = +d["Gender Development Index"]; d.gdp = +d["GDP per capita"]; d.pop = +d["Population"]; });
 
-  drawScatterChart(urbData, genderData);
+  drawScatterChart(urbData, genderData, 2023);
   initScatterControls(urbData, genderData); 
 });
 
@@ -433,7 +434,8 @@ function initScatterControls(urbData, genderData) {
       document.querySelectorAll(".x-btn").forEach(b => b.classList.remove("active"));
       this.classList.add("active");
       scatterXAttr = this.dataset.attr;
-      drawScatterChart(urbData, genderData);
+      const year = +document.getElementById("year-slider").value;
+      drawScatterChart(urbData, genderData, year);
     });
   });
 
@@ -442,32 +444,41 @@ function initScatterControls(urbData, genderData) {
       document.querySelectorAll(".y-btn").forEach(b => b.classList.remove("active"));
       this.classList.add("active");
       scatterYAttr = this.dataset.attr;
-      drawScatterChart(urbData, genderData);
+      const year = +document.getElementById("year-slider").value;
+      drawScatterChart(urbData, genderData, year);
     });
   });
 }
 
-function drawScatterChart(urbData, genderData) {
+function drawScatterChart(urbData, genderData, selectedYear) {  // ← add selectedYear
   d3.select("#plot").selectAll("*").remove();
 
-  const urbLatest = new Map();
+  const urbFiltered = new Map();
   urbData.forEach(d => {
     if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    const prev = urbLatest.get(d.Entity);
-    if (!prev || d.Year > prev.Year) urbLatest.set(d.Entity, d);
+    if (d.Year === selectedYear) urbFiltered.set(d.Entity, d);
   });
 
-  const genderLatest = new Map();
+  const genderFiltered = new Map();
   genderData.forEach(d => {
     if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
     if (!d.gdi) return;
-    const prev = genderLatest.get(d.Entity);
-    if (!prev || d.Year > prev.Year) genderLatest.set(d.Entity, d);
+    if (d.Year === selectedYear) genderFiltered.set(d.Entity, d);
   });
 
+  // fall back to latest year per country if no data for selected year
+  if (genderFiltered.size === 0) {
+    genderData.forEach(d => {
+      if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+      if (!d.gdi || d.Year > selectedYear) return;
+      const prev = genderFiltered.get(d.Entity);
+      if (!prev || d.Year > prev.Year) genderFiltered.set(d.Entity, d);
+    });
+  }
+
   const merged = [];
-  urbLatest.forEach((u, entity) => {
-    const g = genderLatest.get(entity);
+  urbFiltered.forEach((u, entity) => {
+    const g = genderFiltered.get(entity);
     if (g) merged.push({
       Entity: entity,
       Urban:  u.Urban,
@@ -479,7 +490,7 @@ function drawScatterChart(urbData, genderData) {
     });
   });
 
-  // ← define config first before using it
+  // ← define config and cfg before anything uses them
   const attrConfig = {
     Urban: { label: "Urban Population %", format: d => d.toFixed(1) + "%",                          scale: "linear" },
     Rural: { label: "Rural Population %", format: d => d.toFixed(1) + "%",                          scale: "linear" },
@@ -488,19 +499,20 @@ function drawScatterChart(urbData, genderData) {
     pop:   { label: "Population",         format: d => d3.format(".2s")(d),                         scale: "log"    }
   };
 
-  // ← define xCfg/yCfg before using them
   const xCfg = attrConfig[scatterXAttr];
   const yCfg = attrConfig[scatterYAttr];
 
+  // ← define clean before scales use it
   const clean = merged.filter(d =>
     d[scatterXAttr] > 0 && d[scatterYAttr] > 0 &&
     !isNaN(d[scatterXAttr]) && !isNaN(d[scatterYAttr])
   );
 
   const scatterMargin = { top: 40, right: 150, bottom: 60, left: 75 };
-  const scatterWidth  = 500 - scatterMargin.left - scatterMargin.right;
+  const scatterWidth  = 550 - scatterMargin.left - scatterMargin.right;
   const scatterHeight = 400 - scatterMargin.top  - scatterMargin.bottom;
 
+  // ← define svg before anything appends to it
   const svg = d3.select("#plot").append("svg")
     .attr("width",  scatterWidth  + scatterMargin.left + scatterMargin.right)
     .attr("height", scatterHeight + scatterMargin.top  + scatterMargin.bottom)
@@ -511,7 +523,7 @@ function drawScatterChart(urbData, genderData) {
     .attr("x", scatterWidth / 2).attr("y", -14)
     .attr("text-anchor", "middle")
     .attr("font-size", "13px").attr("font-weight", "bold")
-    .text(`${xCfg.label} vs ${yCfg.label} by Country`);
+    .text(`${xCfg.label} vs ${yCfg.label} by Country (${selectedYear})`);
 
   // ← define scales before axes
   const xScale = xCfg.scale === "log"
@@ -537,7 +549,7 @@ function drawScatterChart(urbData, genderData) {
     .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
     .call(g => g.select(".domain").remove());
 
-  // ← axes drawn once with gdp-aware tick values
+  // axes — drawn once with gdp-aware tick values
   const xAxis = scatterXAttr === "gdp"
     ? d3.axisBottom(xScale).tickValues([1000, 5000, 10000, 25000, 50000, 100000]).tickFormat(xCfg.format)
     : d3.axisBottom(xScale).tickFormat(xCfg.format).ticks(6);

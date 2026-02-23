@@ -18,6 +18,7 @@ const nameMap = {
   
 };
 
+
 // ---- load gender data ----
 d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {
   data.forEach(d => {
@@ -70,6 +71,7 @@ d3.csv("data/share-urban-and-rural-population.csv").then(data => {
   
 
 }).catch(error => console.error("Error loading urban data:", error));
+
 
 
 
@@ -357,6 +359,8 @@ function drawGenderBarChart(data, selectedYear) {
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
+  console.log("sample country row:", countries[0]);
+
   const svg = d3.select("#panel-3")
     .append("svg")
     .attr("width",  barWidth)
@@ -401,7 +405,7 @@ function drawGenderBarChart(data, selectedYear) {
         .style("left", (event.pageX + 10) + "px")
         .style("top",  (event.pageY + 10) + "px")
         .html(`
-          <strong>GDI ${b.label}</strong><br/>
+          <strong>${b.label} GDI</strong><br/>
           Countries: ${b.countries.length}<br/>
           <small>${b.countries.map(d => d.Entity).join(", ")}</small>
         `);
@@ -618,6 +622,8 @@ function drawScatterChart(urbData, genderData, selectedYear) {  // ← add selec
     legend.append("circle").attr("cx", 6).attr("cy", i * 20).attr("r", 5).attr("fill", colorScale(r));
     legend.append("text").attr("x", 16).attr("y", i * 20 + 4).attr("font-size", "10px").text(r);
   });
+
+  
 }
 
 

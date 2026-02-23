@@ -33,13 +33,12 @@ d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {
   const slider = document.getElementById("year-slider");
   const label  = document.getElementById("year-label");
   slider.min   = d3.min(years);
-  slider.max   = d3.max(years);
-  slider.value = d3.max(years);
-  label.textContent = d3.max(years);
+  slider.max   = 2023;//d3.max(years);
+  slider.value = 2023; //d3.max(years);
+  label.textContent = 2023; //d3.max(years);
 
   
-  drawGenderBarChart(genderDataGlobal, d3.max(years));
-  // update on slider change — inside .then() so data is available
+  drawGenderBarChart(genderDataGlobal, 2023);
   slider.addEventListener("input", function() {
     const year = +this.value;
     label.textContent = year;
@@ -63,8 +62,8 @@ d3.csv("data/share-urban-and-rural-population.csv").then(data => {
 
   const years = [...new Set(data.map(d => d.Year))].sort((a, b) => a - b);
   // initial draw
-  drawUrbBarChart(urbDataGlobal, d3.max(years));
-  drawRuralBarChart(urbDataGlobal, d3.max(years));
+  drawUrbBarChart(urbDataGlobal, 2023);
+  drawRuralBarChart(urbDataGlobal, 2023);
 
   
 
@@ -422,9 +421,170 @@ function drawGenderBarChart(data, selectedYear) {
 }
 
 
+let scatterXAttr = "Urban";
+let scatterYAttr = "gdi";
 
-// ---- Scatter plot ----
+const scatterAttrConfig = {
+  Urban:  { label: "Urban Population %",  format: d => d.toFixed(1) + "%",     scale: "linear" },
+  Rural:  { label: "Rural Population %",  format: d => d.toFixed(1) + "%",     scale: "linear" },
+  gdi:    { label: "Gender Dev. Index",   format: d => d.toFixed(3),            scale: "linear" },
+  gdp:    { label: "GDP per Capita",      format: d => "$" + d3.format(",")(Math.round(d)), scale: "log" },
+  pop:    { label: "Population",          format: d => d3.format(".2s")(d),     scale: "log" }
+};
+
+// wire up buttons — call this once after DOM loads
+function initScatterControls(urbData, genderData) {
+  document.querySelectorAll(".x-btn").forEach(btn => {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".x-btn").forEach(b => b.classList.remove("active"));
+      this.classList.add("active");
+      scatterXAttr = this.dataset.attr;
+      drawScatterChart(urbData, genderData);
+    });
+  });
+
+  document.querySelectorAll(".y-btn").forEach(btn => {
+    btn.addEventListener("click", function() {
+      document.querySelectorAll(".y-btn").forEach(b => b.classList.remove("active"));
+      this.classList.add("active");
+      scatterYAttr = this.dataset.attr;
+      drawScatterChart(urbData, genderData);
+    });
+  });
+}
+
 function drawScatterChart(urbData, genderData) {
+  d3.select("#plot").selectAll("*").remove();
+
+  const urbLatest = new Map();
+  urbData.forEach(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+    const prev = urbLatest.get(d.Entity);
+    if (!prev || d.Year > prev.Year) urbLatest.set(d.Entity, d);
+  });
+
+  const genderLatest = new Map();
+  genderData.forEach(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+    if (!d.gdi) return;
+    const prev = genderLatest.get(d.Entity);
+    if (!prev || d.Year > prev.Year) genderLatest.set(d.Entity, d);
+  });
+
+  // merge both datasets
+  const merged = [];
+  urbLatest.forEach((u, entity) => {
+    const g = genderLatest.get(entity);
+    if (g) merged.push({
+      Entity: entity,
+      Urban:  u.Urban,
+      Rural:  u.Rural,
+      gdi:    g.gdi,
+      gdp:    g.gdp,
+      pop:    g.pop,
+      region: g["World region according to OWID"]
+    });
+  });
+
+  const xCfg = scatterAttrConfig[scatterXAttr];
+  const yCfg = scatterAttrConfig[scatterYAttr];
+
+  // filter out zero/null values for log scales
+  const clean = merged.filter(d =>
+    d[scatterXAttr] > 0 && d[scatterYAttr] > 0 &&
+    !isNaN(d[scatterXAttr]) && !isNaN(d[scatterYAttr])
+  );
+
+  const scatterMargin = { top: 40, right: 140, bottom: 60, left: 70 };
+  const scatterWidth  = 860 - scatterMargin.left - scatterMargin.right;
+  const scatterHeight = 500 - scatterMargin.top  - scatterMargin.bottom;
+
+  const svg = d3.select("#plot").append("svg")
+    .attr("width",  scatterWidth  + scatterMargin.left + scatterMargin.right)
+    .attr("height", scatterHeight + scatterMargin.top  + scatterMargin.bottom)
+    .append("g")
+    .attr("transform", `translate(${scatterMargin.left},${scatterMargin.top})`);
+
+  svg.append("text")
+    .attr("x", scatterWidth / 2).attr("y", -14)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "13px").attr("font-weight", "bold")
+    .text(`${xCfg.label} vs ${yCfg.label} by Country`);
+
+  // build scales
+  const xScale = xCfg.scale === "log"
+    ? d3.scaleLog().domain(d3.extent(clean, d => d[scatterXAttr])).nice().range([0, scatterWidth])
+    : d3.scaleLinear().domain(d3.extent(clean, d => d[scatterXAttr])).nice().range([0, scatterWidth]);
+
+  const yScale = yCfg.scale === "log"
+    ? d3.scaleLog().domain(d3.extent(clean, d => d[scatterYAttr])).nice().range([scatterHeight, 0])
+    : d3.scaleLinear().domain(d3.extent(clean, d => d[scatterYAttr])).nice().range([scatterHeight, 0]);
+
+  const colorScale = d3.scaleOrdinal(d3.schemeTableau10)
+    .domain([...new Set(clean.map(d => d.region))]);
+
+  // gridlines
+  svg.append("g")
+    .call(d3.axisLeft(yScale).tickSize(-scatterWidth).tickFormat(""))
+    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
+    .call(g => g.select(".domain").remove());
+
+  svg.append("g")
+    .attr("transform", `translate(0,${scatterHeight})`)
+    .call(d3.axisBottom(xScale).tickSize(-scatterHeight).tickFormat(""))
+    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
+    .call(g => g.select(".domain").remove());
+
+  // axes
+  svg.append("g")
+    .attr("transform", `translate(0,${scatterHeight})`)
+    .call(d3.axisBottom(xScale).tickFormat(xCfg.format).ticks(6))
+    .append("text")
+    .attr("x", scatterWidth / 2).attr("y", 45)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text(xCfg.label);
+
+  svg.append("g")
+    .call(d3.axisLeft(yScale).tickFormat(yCfg.format).ticks(6))
+    .append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -scatterHeight / 2).attr("y", -55)
+    .attr("fill", "black").attr("text-anchor", "middle")
+    .text(yCfg.label);
+
+  // dots
+  svg.selectAll(".dot").data(clean).join("circle")
+    .attr("class", "dot")
+    .attr("cx", d => xScale(d[scatterXAttr]))
+    .attr("cy", d => yScale(d[scatterYAttr]))
+    .attr("r", 5)
+    .attr("fill", d => colorScale(d.region))
+    .attr("opacity", 0.75)
+    .attr("stroke", "white")
+    .attr("stroke-width", 0.5)
+    .on("mouseover", (event, d) => {
+      d3.select("#tooltip").style("display", "block")
+        .style("left", (event.pageX + 10) + "px")
+        .style("top",  (event.pageY + 10) + "px")
+        .html(`
+          <strong>${d.Entity}</strong><br/>
+          ${xCfg.label}: ${xCfg.format(d[scatterXAttr])}<br/>
+          ${yCfg.label}: ${yCfg.format(d[scatterYAttr])}<br/>
+          Region: ${d.region}
+        `);
+    })
+    .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
+
+  // legend
+  const regions = [...new Set(clean.map(d => d.region))].filter(Boolean);
+  const legend  = svg.append("g").attr("transform", `translate(${scatterWidth + 10}, 0)`);
+  regions.forEach((r, i) => {
+    legend.append("circle").attr("cx", 6).attr("cy", i * 20).attr("r", 5).attr("fill", colorScale(r));
+    legend.append("text").attr("x", 16).attr("y", i * 20 + 4).attr("font-size", "10px").text(r);
+  });
+}
+// ---- Scatter plot ----
+/*function drawScatterChart(urbData, genderData) {*/
 
   // get latest year per country for urban data
   const urbLatest = new Map();
@@ -457,10 +617,10 @@ function drawScatterChart(urbData, genderData) {
   });
 
   const scatterMargin = { top: 40, right: 30, bottom: 60, left: 70 };
-  const scatterWidth  = 900 - scatterMargin.left - scatterMargin.right;
-  const scatterHeight = 500 - scatterMargin.top  - scatterMargin.bottom;
+  const scatterWidth  = 500 - scatterMargin.left - scatterMargin.right;
+  const scatterHeight = 300 - scatterMargin.top  - scatterMargin.bottom;
 
-  const svg = d3.select("body")
+  const svg = d3.select("#plot")
     .append("svg")
     .attr("width",  scatterWidth  + scatterMargin.left + scatterMargin.right)
     .attr("height", scatterHeight + scatterMargin.top  + scatterMargin.bottom)

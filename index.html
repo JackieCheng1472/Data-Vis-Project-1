@@ -17,10 +17,26 @@
 
     <div id="dashboard">
 
-        <div id="row-3">
+        <div id="controls">
              <div id="slider-container">
-                <label for="year-slider">Year: <span id="year-label">2024</span></label>
-                <input type="range" id="year-slider" min="2000" max="2024" step="1" value="2024">
+                <label for="year-slider">Year: <span id="year-label">2023</span></label>
+                <input type="range" id="year-slider" min="2000" max="2023" step="1" value="2023">
+            </div>
+            <div id="scatter-controls">
+                <div class="axis-selector">
+                    <label>X Axis:</label>
+                    <button class="x-btn active" data-attr="Urban">Urban %</button>
+                    <button class="x-btn" data-attr="Rural">Rural %</button>
+                    <button class="x-btn" data-attr="gdp">GDP per Capita</button>
+                    <button class="x-btn" data-attr="pop">Population</button>
+                </div>
+                <div class="axis-selector">
+                    <label>Y Axis:</label>
+                    <button class="y-btn active" data-attr="gdi">GDI</button>
+                    <button class="y-btn" data-attr="Urban">Urban %</button>
+                    <button class="y-btn" data-attr="Rural">Rural %</button>
+                    <button class="y-btn" data-attr="gdp">GDP per Capita</button>
+                </div>
             </div>
         </div>
         <div id="row-1">
@@ -30,11 +46,13 @@
 
         <div id="row-2">
             <div id="panel-3"></div>
+            <div id="plot"></div>
         </div>
         
 
-        <div id="row-4">
+        <div id="row-3">
             <div id="map"></div>
+            
         </div>
 
     </div>

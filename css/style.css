@@ -9,6 +9,48 @@
   flex-wrap: wrap;
 }
 
+#controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  margin-bottom: 10px;
+}
+
+#attribute-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#attribute-selector p {
+  font-weight: bold;
+  margin: 0;
+}
+
+.attr-btn {
+  padding: 6px 14px;
+  border: 2px solid #2196f3;
+  background: white;
+  color: #2196f3;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.attr-btn.active {
+  background: #2196f3;
+  color: white;
+}
+
+.attr-btn:hover {
+  background: #e3f2fd;
+}
+
 #dashboard {
   display: flex;
   flex-direction: column;
@@ -18,18 +60,18 @@
   background-color: #ccc;
 }
 
-#row-1, #row-2 {
+#row-1, #row-2 ,  #row-3 {
   
   display: flex;
   flex-direction: row;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   flex-wrap: wrap;
   gap: 60px;
   width: 100%;
 }
 
-#panel-1, #panel-2, #panel-3 {
+#panel-1, #panel-2, #panel-3, #plot {
   background-color: rgb(255, 255, 255);
   width: 510px;
   height: 310px;

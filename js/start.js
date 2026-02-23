@@ -567,6 +567,10 @@ function drawScatterChart(urbData, genderData, selectedYear) {
     ? d3.scaleLog().domain(d3.extent(clean, d => d[scatterYAttr])).nice().range([scatterHeight, 0])
     : d3.scaleLinear().domain(d3.extent(clean, d => d[scatterYAttr])).nice().range([scatterHeight, 0]);
 
+  const rScale = d3.scaleLinear()
+    .domain(d3.extent(merged, d => d.gdp))
+    .range([5, 20]);
+
   const colorScale = d3.scaleOrdinal(d3.schemeTableau10)
     .domain([...new Set(clean.map(d => d.region))]);
 
@@ -643,14 +647,10 @@ function drawScatterChart(urbData, genderData, selectedYear) {
 
   svg.append("g").attr("class", "brush").call(brush);
   svg.selectAll(".dot").data(clean).join("circle")
-  .attr("class", "dot")
-
-  // ---- dots drawn AFTER brush so they appear on top ----
-  svg.selectAll(".dot").data(clean).join("circle")
     .attr("class", "dot")
     .attr("cx", d => xScale(d[scatterXAttr]))
     .attr("cy", d => yScale(d[scatterYAttr]))
-    .attr("r", 5)
+    .attr("r", d => rScale(d.gdp))
     .attr("fill", d => colorScale(d.region))
     .attr("opacity", d =>
       selectedEntities.size === 0 || selectedEntities.has(d.Entity) ? 0.75 : 0.1

@@ -76,17 +76,11 @@ Promise.all([
   d3.csv("data/share-urban-and-rural-population.csv"),
   d3.csv("data/gender-development-index-vs-gdp-per-capita.csv")
 ]).then(([urbData, genderData]) => {
-  urbData.forEach(d => {
-    d.Year  = +d.Year;
-    d.Urban = +d["Urban"];
-    d.Rural = +d["Rural"];
-  });
-  genderData.forEach(d => {
-    d.Year = +d.Year;
-    d.gdi  = +d["Gender Development Index"];
-    d.gdp  = +d["GDP per capita"];
-  });
+  urbData.forEach(d => { d.Year = +d.Year; d.Urban = +d["Urban"]; d.Rural = +d["Rural"]; });
+  genderData.forEach(d => { d.Year = +d.Year; d.gdi = +d["Gender Development Index"]; d.gdp = +d["GDP per capita"]; d.pop = +d["Population"]; });
+
   drawScatterChart(urbData, genderData);
+  initScatterControls(urbData, genderData); 
 });
 
 // ---- choropleth ----
@@ -343,8 +337,8 @@ function drawGenderBarChart(data, selectedYear) {
   });
 
   const barMargin = { top: 40, right: 20, bottom: 60, left: 60 };
-  const barWidth  = 510;
-  const barHeight = 310;
+  const barWidth  = 500;
+  const barHeight = 400;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
 
@@ -432,7 +426,7 @@ const scatterAttrConfig = {
   pop:    { label: "Population",          format: d => d3.format(".2s")(d),     scale: "log" }
 };
 
-// wire up buttons — call this once after DOM loads
+
 function initScatterControls(urbData, genderData) {
   document.querySelectorAll(".x-btn").forEach(btn => {
     btn.addEventListener("click", function() {
@@ -471,7 +465,6 @@ function drawScatterChart(urbData, genderData) {
     if (!prev || d.Year > prev.Year) genderLatest.set(d.Entity, d);
   });
 
-  // merge both datasets
   const merged = [];
   urbLatest.forEach((u, entity) => {
     const g = genderLatest.get(entity);
@@ -486,18 +479,27 @@ function drawScatterChart(urbData, genderData) {
     });
   });
 
-  const xCfg = scatterAttrConfig[scatterXAttr];
-  const yCfg = scatterAttrConfig[scatterYAttr];
+  // ← define config first before using it
+  const attrConfig = {
+    Urban: { label: "Urban Population %", format: d => d.toFixed(1) + "%",                          scale: "linear" },
+    Rural: { label: "Rural Population %", format: d => d.toFixed(1) + "%",                          scale: "linear" },
+    gdi:   { label: "Gender Dev. Index",  format: d => d.toFixed(2),                                scale: "linear" },
+    gdp:   { label: "GDP per Capita",     format: d => "$" + d3.format(".2s")(d).replace("G", "B"), scale: "log"    },
+    pop:   { label: "Population",         format: d => d3.format(".2s")(d),                         scale: "log"    }
+  };
 
-  // filter out zero/null values for log scales
+  // ← define xCfg/yCfg before using them
+  const xCfg = attrConfig[scatterXAttr];
+  const yCfg = attrConfig[scatterYAttr];
+
   const clean = merged.filter(d =>
     d[scatterXAttr] > 0 && d[scatterYAttr] > 0 &&
     !isNaN(d[scatterXAttr]) && !isNaN(d[scatterYAttr])
   );
 
-  const scatterMargin = { top: 40, right: 140, bottom: 60, left: 70 };
-  const scatterWidth  = 860 - scatterMargin.left - scatterMargin.right;
-  const scatterHeight = 500 - scatterMargin.top  - scatterMargin.bottom;
+  const scatterMargin = { top: 40, right: 150, bottom: 60, left: 75 };
+  const scatterWidth  = 500 - scatterMargin.left - scatterMargin.right;
+  const scatterHeight = 400 - scatterMargin.top  - scatterMargin.bottom;
 
   const svg = d3.select("#plot").append("svg")
     .attr("width",  scatterWidth  + scatterMargin.left + scatterMargin.right)
@@ -511,7 +513,7 @@ function drawScatterChart(urbData, genderData) {
     .attr("font-size", "13px").attr("font-weight", "bold")
     .text(`${xCfg.label} vs ${yCfg.label} by Country`);
 
-  // build scales
+  // ← define scales before axes
   const xScale = xCfg.scale === "log"
     ? d3.scaleLog().domain(d3.extent(clean, d => d[scatterXAttr])).nice().range([0, scatterWidth])
     : d3.scaleLinear().domain(d3.extent(clean, d => d[scatterXAttr])).nice().range([0, scatterWidth]);
@@ -535,20 +537,28 @@ function drawScatterChart(urbData, genderData) {
     .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
     .call(g => g.select(".domain").remove());
 
-  // axes
+  // ← axes drawn once with gdp-aware tick values
+  const xAxis = scatterXAttr === "gdp"
+    ? d3.axisBottom(xScale).tickValues([1000, 5000, 10000, 25000, 50000, 100000]).tickFormat(xCfg.format)
+    : d3.axisBottom(xScale).tickFormat(xCfg.format).ticks(6);
+
+  const yAxis = scatterYAttr === "gdp"
+    ? d3.axisLeft(yScale).tickValues([1000, 5000, 10000, 25000, 50000, 100000]).tickFormat(yCfg.format)
+    : d3.axisLeft(yScale).tickFormat(yCfg.format).ticks(6);
+
   svg.append("g")
     .attr("transform", `translate(0,${scatterHeight})`)
-    .call(d3.axisBottom(xScale).tickFormat(xCfg.format).ticks(6))
+    .call(xAxis)
     .append("text")
     .attr("x", scatterWidth / 2).attr("y", 45)
     .attr("fill", "black").attr("text-anchor", "middle")
     .text(xCfg.label);
 
   svg.append("g")
-    .call(d3.axisLeft(yScale).tickFormat(yCfg.format).ticks(6))
+    .call(yAxis)
     .append("text")
     .attr("transform", "rotate(-90)")
-    .attr("x", -scatterHeight / 2).attr("y", -55)
+    .attr("x", -scatterHeight / 2).attr("y", -60)
     .attr("fill", "black").attr("text-anchor", "middle")
     .text(yCfg.label);
 
@@ -583,135 +593,9 @@ function drawScatterChart(urbData, genderData) {
     legend.append("text").attr("x", 16).attr("y", i * 20 + 4).attr("font-size", "10px").text(r);
   });
 }
-// ---- Scatter plot ----
-/*function drawScatterChart(urbData, genderData) {*/
 
-  // get latest year per country for urban data
-  const urbLatest = new Map();
-  urbData.forEach(d => {
-    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    const prev = urbLatest.get(d.Entity);
-    if (!prev || d.Year > prev.Year) urbLatest.set(d.Entity, d);
-  });
 
-  // get latest year per country for gender data
-  const genderLatest = new Map();
-  genderData.forEach(d => {
-    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
-    if (!d.gdi) return;
-    const prev = genderLatest.get(d.Entity);
-    if (!prev || d.Year > prev.Year) genderLatest.set(d.Entity, d);
-  });
 
-  // merge: only countries present in both datasets
-  const merged = [];
-  urbLatest.forEach((u, entity) => {
-    const g = genderLatest.get(entity);
-    if (g) merged.push({
-      Entity: entity,
-      Urban:  u.Urban,
-      gdi:    g.gdi,
-      gdp:    g.gdp,
-      region: g.region
-    });
-  });
-
-  const scatterMargin = { top: 40, right: 30, bottom: 60, left: 70 };
-  const scatterWidth  = 500 - scatterMargin.left - scatterMargin.right;
-  const scatterHeight = 300 - scatterMargin.top  - scatterMargin.bottom;
-
-  const svg = d3.select("#plot")
-    .append("svg")
-    .attr("width",  scatterWidth  + scatterMargin.left + scatterMargin.right)
-    .attr("height", scatterHeight + scatterMargin.top  + scatterMargin.bottom)
-    .append("g")
-    .attr("transform", `translate(${scatterMargin.left},${scatterMargin.top})`);
-
-  // title
-  svg.append("text")
-    .attr("x", scatterWidth / 2).attr("y", -14)
-    .attr("text-anchor", "middle")
-    .attr("font-size", "14px").attr("font-weight", "bold")
-    .text("Urban Population % vs Gender Development Index by Country");
-
-  const x = d3.scaleLinear()
-    .domain([0, 100]).nice()
-    .range([0, scatterWidth]);
-
-  const y = d3.scaleLinear()
-    .domain(d3.extent(merged, d => d.gdi)).nice()
-    .range([scatterHeight, 0]);
-
-  const rScale = d3.scaleLinear()
-    .domain(d3.extent(merged, d => d.gdp))
-    .range([4, 20]);
-
-  const colorScale = d3.scaleOrdinal(d3.schemeTableau10)
-    .domain([...new Set(merged.map(d => d.region))]);
-
-  // gridlines
-  svg.append("g")
-    .call(d3.axisLeft(y).tickSize(-scatterWidth).tickFormat(""))
-    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
-    .call(g => g.select(".domain").remove());
-
-  svg.append("g")
-    .attr("transform", `translate(0,${scatterHeight})`)
-    .call(d3.axisBottom(x).tickSize(-scatterHeight).tickFormat(""))
-    .call(g => g.selectAll("line").attr("stroke", "#e0e0e0"))
-    .call(g => g.select(".domain").remove());
-
-  // axes
-  svg.append("g")
-    .attr("transform", `translate(0,${scatterHeight})`)
-    .call(d3.axisBottom(x).tickFormat(d => d + "%"))
-    .append("text")
-    .attr("x", scatterWidth / 2).attr("y", 45)
-    .attr("fill", "black").attr("text-anchor", "middle")
-    .text("Urban Population %");
-
-  svg.append("g")
-    .call(d3.axisLeft(y).tickFormat(d => d.toFixed(2)))
-    .append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("x", -scatterHeight / 2).attr("y", -55)
-    .attr("fill", "black").attr("text-anchor", "middle")
-    .text("Gender Development Index");
-
-  // dots
-  svg.selectAll(".dot")
-    .data(merged)
-    .join("circle")
-    .attr("class", "dot")
-    .attr("cx", d => x(d.Urban))
-    .attr("cy", d => y(d.gdi))
-    .attr("r", d => 5 + d.gdp / 10000) // size by GDP per capita
-    .attr("fill", d => colorScale(d.region))
-    .attr("opacity", 0.75)
-    .attr("stroke", "white")
-    .attr("stroke-width", 0.5)
-    .on("mouseover", (event, d) => {
-      d3.select("#tooltip")
-        .style("display", "block")
-        .style("left", (event.pageX + 10) + "px")
-        .style("top",  (event.pageY + 10) + "px")
-        .html(`
-          <strong>${d.Entity}</strong><br/>
-          Urban: ${d.Urban.toFixed(1)}%<br/>
-          GDI: ${d.gdi.toFixed(3)}<br/>
-          Region: ${d.region}
-        `);
-    })
-    .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
-
-  // legend
-  const regions = [...new Set(merged.map(d => d.region))].filter(Boolean);
-  const legend  = svg.append("g").attr("transform", `translate(${scatterWidth - 120}, 0)`);
-  regions.forEach((r, i) => {
-    legend.append("circle").attr("cx", 6).attr("cy", i * 20).attr("r", 5).attr("fill", colorScale(r));
-    legend.append("text").attr("x", 16).attr("y", i * 20 + 4).attr("font-size", "10px").text(r);
-  });
-}
 
 
 

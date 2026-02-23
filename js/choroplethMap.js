@@ -2,7 +2,9 @@ class ChoroplethMap {
 
   constructor(_config, _data) {
     this.config = {
+      
       parentElement: _config.parentElement,
+      selectedYear:  _config.selectedYear || 2023,
       containerWidth: _config.containerWidth || 900,
       containerHeight: _config.containerHeight || 500,
       margin: _config.margin || {top: 0, right: 0, bottom: 0, left: 0},
@@ -59,10 +61,12 @@ class ChoroplethMap {
   updateVis() {
     let vis = this;
 
-  
     const gdiExtent = d3.extent(vis.data.features, d => d.properties.genderindex);
 
     vis.colorScale.domain(gdiExtent);
+
+    //legend title with year
+    vis.legendTitle.text(`GDI (${vis.config.selectedYear})`);
 
     vis.legendStops = [
       { color: '#cfe2f2', value: gdiExtent[0], offset: 0   },

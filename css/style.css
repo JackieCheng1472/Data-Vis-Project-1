@@ -137,3 +137,13 @@
   box-shadow: 2px 2px 6px rgba(0,0,0,0.15);
   z-index: 999;
 }
+
+.brush .selection {
+  fill: rgba(100, 100, 100, 0.15);
+  stroke: #666;
+  stroke-width: 1px;
+}
+
+.brush .handle {
+  fill: #666;
+}

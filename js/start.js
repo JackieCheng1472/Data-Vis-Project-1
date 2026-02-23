@@ -197,7 +197,11 @@ function drawUrbBarChart(data, selectedYear) {
     .attr("y", b => y(b.countries.length))
     .attr("width", x.bandwidth())
     .attr("height", b => iH - y(b.countries.length))
-    .attr("fill", "#2196f3")
+    .attr("fill", b => {
+      if (selectedEntities.size === 0) return "#2196f3";
+        const hasSelected = b.countries.some(d => selectedEntities.has(d.Entity));
+        return hasSelected ? "#2196f3" : "#d0d0d0";
+      })
     .on("mouseover", (event, b) => {
       d3.select("#tooltip")
         .style("display", "block")
@@ -296,7 +300,11 @@ function drawRuralBarChart(data, selectedYear) {
     .attr("y", b => y(b.countries.length))
     .attr("width", x.bandwidth())
     .attr("height", b => iH - y(b.countries.length))
-    .attr("fill", "#f37921")
+    .attr("fill", b => {
+      if (selectedEntities.size === 0) return "#f37921";
+        const hasSelected = b.countries.some(d => selectedEntities.has(d.Entity));
+        return hasSelected ? "#f37921" : "#d0d0d0";
+      })
     .on("mouseover", (event, b) => {
       d3.select("#tooltip")
         .style("display", "block")
@@ -341,9 +349,9 @@ function drawGenderBarChart(data, selectedYear) {
     return d.Year === selectedYear;
   });
 
-  // bin into 0.1 GDI ranges: 0–0.1, 0.1–0.2, ... 1.0–1.1
-  const binSize = 0.1;
-  const bins = d3.range(0, 1.1, binSize).map(start => {
+  // 
+  const binSize = (1.1 - 0.4) / 12; // range of GDI values (0.3 to 1.1)
+  const bins = d3.range(0.4, 1.1, binSize).map(start => {
     const end = +(start + binSize).toFixed(1);
     return {
       label: `${start.toFixed(1)}–${end.toFixed(1)}`,
@@ -358,8 +366,6 @@ function drawGenderBarChart(data, selectedYear) {
   const barHeight = 400;
   const iW = barWidth  - barMargin.left - barMargin.right;
   const iH = barHeight - barMargin.top  - barMargin.bottom;
-
-  console.log("sample country row:", countries[0]);
 
   const svg = d3.select("#panel-3")
     .append("svg")
@@ -398,7 +404,11 @@ function drawGenderBarChart(data, selectedYear) {
     .attr("y", b => y(b.countries.length))
     .attr("width", x.bandwidth())
     .attr("height", b => iH - y(b.countries.length))
-    .attr("fill", "#f06277")
+    .attr("fill", b => {
+      if (selectedEntities.size === 0) return "#f06277";
+        const hasSelected = b.countries.some(d => selectedEntities.has(d.Entity));
+        return hasSelected ? "#f06277" : "#d0d0d0";
+      })
     .on("mouseover", (event, b) => {
       d3.select("#tooltip")
         .style("display", "block")
@@ -433,9 +443,16 @@ function drawGenderBarChart(data, selectedYear) {
     .text("Gender Development Index Range");
 }
 
-
+//----scatter plot-------------
 let scatterXAttr = "Urban";
 let scatterYAttr = "gdi";
+let selectedEntities = new Set();
+
+d3.select("#plot").on("dblclick", () => {
+  const year = +document.getElementById("year-slider").value;
+  selectedEntities = new Set();
+  drawScatterChart(urbDataGlobal, genderDataGlobal, year);
+});
 
 const scatterAttrConfig = {
   Urban:  { label: "Urban Population %",  format: d => d.toFixed(1) + "%",     scale: "linear" },
@@ -468,7 +485,7 @@ function initScatterControls(urbData, genderData) {
   });
 }
 
-function drawScatterChart(urbData, genderData, selectedYear) {  // ← add selectedYear
+function drawScatterChart(urbData, genderData, selectedYear) {  
   d3.select("#plot").selectAll("*").remove();
 
   const urbFiltered = new Map();
@@ -530,7 +547,6 @@ function drawScatterChart(urbData, genderData, selectedYear) {  // ← add selec
   const scatterWidth  = 550 - scatterMargin.left - scatterMargin.right;
   const scatterHeight = 400 - scatterMargin.top  - scatterMargin.bottom;
 
-  // ← define svg before anything appends to it
   const svg = d3.select("#plot").append("svg")
     .attr("width",  scatterWidth  + scatterMargin.left + scatterMargin.right)
     .attr("height", scatterHeight + scatterMargin.top  + scatterMargin.bottom)
@@ -543,7 +559,6 @@ function drawScatterChart(urbData, genderData, selectedYear) {  // ← add selec
     .attr("font-size", "13px").attr("font-weight", "bold")
     .text(`${xCfg.label} vs ${yCfg.label} by Country (${selectedYear})`);
 
-  // ← define scales before axes
   const xScale = xCfg.scale === "log"
     ? d3.scaleLog().domain(d3.extent(clean, d => d[scatterXAttr])).nice().range([0, scatterWidth])
     : d3.scaleLinear().domain(d3.extent(clean, d => d[scatterXAttr])).nice().range([0, scatterWidth]);
@@ -592,20 +607,60 @@ function drawScatterChart(urbData, genderData, selectedYear) {  // ← add selec
     .attr("fill", "black").attr("text-anchor", "middle")
     .text(yCfg.label);
 
-  // dots
+  // ---- brush ----
+
+  const brush = d3.brush()
+    .extent([[0, 0], [scatterWidth, scatterHeight]])
+    .on("end", function(event) {
+      if (!event.selection) {
+        selectedEntities = new Set(); // clear on click away
+      } else {
+        const [[x0, y0], [x1, y1]] = event.selection;
+        selectedEntities = new Set(
+          clean
+            .filter(d =>
+              xScale(d[scatterXAttr]) >= x0 && xScale(d[scatterXAttr]) <= x1 &&
+              yScale(d[scatterYAttr]) >= y0 && yScale(d[scatterYAttr]) <= y1
+            )
+            .map(d => d.Entity)
+        );
+      }
+      // highlight selected dots, grey out others
+      d3.selectAll(".dot")
+        .attr("opacity", d =>
+          selectedEntities.size === 0 || selectedEntities.has(d.Entity) ? 0.75 : 0.1
+        )
+        .attr("r", d =>
+          selectedEntities.size === 0 || selectedEntities.has(d.Entity) ? 5 : 3
+        );
+
+        // redraw histograms with selection
+         const year = +document.getElementById("year-slider").value;
+          drawUrbBarChart(urbDataGlobal, year);
+          drawRuralBarChart(urbDataGlobal, year);
+          drawGenderBarChart(genderDataGlobal, year);
+    });
+
+  svg.append("g").attr("class", "brush").call(brush);
+  svg.selectAll(".dot").data(clean).join("circle")
+  .attr("class", "dot")
+
+  // ---- dots drawn AFTER brush so they appear on top ----
   svg.selectAll(".dot").data(clean).join("circle")
     .attr("class", "dot")
     .attr("cx", d => xScale(d[scatterXAttr]))
     .attr("cy", d => yScale(d[scatterYAttr]))
     .attr("r", 5)
     .attr("fill", d => colorScale(d.region))
-    .attr("opacity", 0.75)
+    .attr("opacity", d =>
+      selectedEntities.size === 0 || selectedEntities.has(d.Entity) ? 0.75 : 0.1
+    )
     .attr("stroke", "white")
     .attr("stroke-width", 0.5)
     .on("mouseover", (event, d) => {
       d3.select("#tooltip").style("display", "block")
-        .style("left", (event.pageX + 10) + "px")
-        .style("top",  (event.pageY + 10) + "px")
+        .style("left", (event.pageX + 12) + "px")
+        .style("top",  (event.pageY - 28) + "px")
         .html(`
           <strong>${d.Entity}</strong><br/>
           ${xCfg.label}: ${xCfg.format(d[scatterXAttr])}<br/>
@@ -614,6 +669,8 @@ function drawScatterChart(urbData, genderData, selectedYear) {  // ← add selec
         `);
     })
     .on("mouseleave", () => d3.select("#tooltip").style("display", "none"));
+
+    svg.selectAll(".dot").raise();
 
   // legend
   const regions = [...new Set(clean.map(d => d.region))].filter(Boolean);

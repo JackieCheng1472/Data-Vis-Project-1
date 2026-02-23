@@ -35,7 +35,7 @@ class ChoroplethMap {
     vis.geoPath    = d3.geoPath().projection(vis.projection);
 
     vis.colorScale = d3.scaleLinear()
-      .range(['#cfe2f2', '#0d306b'])
+      .range(['#f1eced', '#f06277'])
       .interpolate(d3.interpolateHcl);
 
     vis.linearGradient = vis.svg.append('defs').append('linearGradient')
@@ -69,8 +69,8 @@ class ChoroplethMap {
     vis.legendTitle.text(`GDI (${vis.config.selectedYear})`);
 
     vis.legendStops = [
-      { color: '#cfe2f2', value: gdiExtent[0], offset: 0   },
-      { color: '#0d306b', value: gdiExtent[1], offset: 100 },
+      { color: '#f1eced', value: gdiExtent[0], offset: 0   },
+      { color: '#f06277', value: gdiExtent[1], offset: 100 },
     ];
 
     vis.renderVis();

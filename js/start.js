@@ -85,6 +85,7 @@ Promise.all([
 });
 
 // ---- choropleth ----
+/*
 Promise.all([
   d3.json('data/worldShapes.json'),
   d3.csv('data/gender-development-index-vs-gdp-per-capita.csv')
@@ -112,7 +113,35 @@ Promise.all([
 
   new ChoroplethMap({ parentElement: '#map' }, geoData);
 }).catch(error => console.error(error));
+*/
 
+Promise.all([
+  d3.json('data/worldShapes.json'),
+  d3.csv('data/gender-development-index-vs-gdp-per-capita.csv')
+]).then(data => {
+  const geoData     = data[0];
+  const countryData = data[1];
+
+  const latest = new Map();
+  countryData.forEach(d => {
+    if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return;
+    if (!d["Gender Development Index"]) return;
+    const prev = latest.get(d.Entity);
+    if (!prev || +d.Year > +prev.Year) latest.set(d.Entity, d);
+  });
+
+  geoData.features.forEach(d => {
+    const lookupName = nameMap[d.properties.name] || d.properties.name;
+    const match = latest.get(lookupName);
+    if (match) {
+      d.properties.genderindex = +match["Gender Development Index"];
+    } else {
+      console.warn(`No GDI data for ${d.properties.name}`);
+    }
+  });
+
+  new ChoroplethMap({ parentElement: '#map' }, geoData);
+}).catch(error => console.error(error)); 
 
 // ---- Histograms ----
 function drawUrbBarChart(data, selectedYear) {
@@ -380,7 +409,7 @@ function drawGenderBarChart(data, selectedYear) {
     .attr("y", b => y(b.countries.length))
     .attr("width", x.bandwidth())
     .attr("height", b => iH - y(b.countries.length))
-    .attr("fill", "#2196f3")
+    .attr("fill", "#f06277")
     .on("mouseover", (event, b) => {
       d3.select("#tooltip")
         .style("display", "block")
@@ -552,11 +581,11 @@ function drawScatterChart(urbData, genderData, selectedYear) {  // ← add selec
   // axes — drawn once with gdp-aware tick values
   const xAxis = scatterXAttr === "gdp"
     ? d3.axisBottom(xScale).tickValues([1000, 5000, 10000, 25000, 50000, 100000]).tickFormat(xCfg.format)
-    : d3.axisBottom(xScale).tickFormat(xCfg.format).ticks(6);
+    : d3.axisBottom(xScale).tickFormat(xCfg.format).ticks(3);
 
   const yAxis = scatterYAttr === "gdp"
     ? d3.axisLeft(yScale).tickValues([1000, 5000, 10000, 25000, 50000, 100000]).tickFormat(yCfg.format)
-    : d3.axisLeft(yScale).tickFormat(yCfg.format).ticks(6);
+    : d3.axisLeft(yScale).tickFormat(yCfg.format).ticks(3);
 
   svg.append("g")
     .attr("transform", `translate(0,${scatterHeight})`)

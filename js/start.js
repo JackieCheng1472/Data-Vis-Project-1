@@ -19,6 +19,14 @@ const nameMap = {
   
 };
 
+document.addEventListener("DOMContentLoaded", function() {
+  document.getElementById("info-toggle").addEventListener("click", function() {
+    const content = document.getElementById("info-content");
+    const isOpen  = content.style.display === "block";
+    content.style.display = isOpen ? "none" : "block";
+    this.textContent = isOpen ? "ℹ️ About this data ▾" : "ℹ️ About this data ▴";
+  });
+});
 
 // ---- load gender data ----
 d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {

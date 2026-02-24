@@ -143,3 +143,39 @@
 .brush .handle {
   fill: #666;
 }
+
+#info-dropdown {
+  text-align: center;
+  margin: 8px auto;
+}
+
+#info-toggle {
+  background: #2196f3;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#info-toggle:hover {
+  background: #1976d2;
+}
+
+#info-content {
+  display: none;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px 20px;
+  margin: 8px auto;
+  max-width: 500px;
+  text-align: left;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#info-content p, #info-content ul {
+  margin: 4px 0;
+}

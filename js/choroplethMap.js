@@ -60,13 +60,10 @@ class ChoroplethMap {
 
   updateVis() {
     let vis = this;
-
-    const gdiExtent = d3.extent(vis.data.features, d => d.properties.genderindex);
-
-    vis.colorScale.domain(gdiExtent);
-
-    //legend title with year
-    vis.legendTitle.text(`GDI (${vis.config.selectedYear})`);
+  const gdiExtent = d3.extent(vis.data.features, d => d.properties.genderindex);
+  vis.colorScale.domain(gdiExtent);
+  window._choroplethColorScale = vis.colorScale; 
+  vis.legendTitle.text(`GDI (${vis.config.selectedYear})`);
 
     vis.legendStops = [
       { color: '#f1eced', value: gdiExtent[0], offset: 0   },

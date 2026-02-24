@@ -4,6 +4,7 @@ const height = 600 - margin.top - margin.bottom;
 
 let urbDataGlobal = [];
 let genderDataGlobal = [];
+let selectedEntities = new Set();
 
 const nameMap = {
   "USA": "United States",
@@ -43,6 +44,7 @@ d3.csv("data/gender-development-index-vs-gdp-per-capita.csv").then(data => {
   slider.addEventListener("input", function() {
     const year = +this.value;
     label.textContent = year;
+    selectedEntities = new Set();
     drawUrbBarChart(urbDataGlobal, year);
     drawRuralBarChart(urbDataGlobal, year);
     drawGenderBarChart(genderDataGlobal, year);
@@ -135,11 +137,14 @@ function drawUrbBarChart(data, selectedYear) {
 
   d3.select("#panel-1").selectAll("*").remove(); // clear before redraw
 
-  const countries = data.filter(d => {
+  let countries = data.filter(d => {
     if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return false;
     return d.Year === selectedYear;
   });
 
+  if (selectedEntities.size > 0) {
+    countries = countries.filter(d => selectedEntities.has(d.Entity));
+  }
   
 
   // bin countries into 10% urbanization ranges: 0-10, 10-20, ... 90-100
@@ -197,11 +202,7 @@ function drawUrbBarChart(data, selectedYear) {
     .attr("y", b => y(b.countries.length))
     .attr("width", x.bandwidth())
     .attr("height", b => iH - y(b.countries.length))
-    .attr("fill", b => {
-      if (selectedEntities.size === 0) return "#2196f3";
-        const hasSelected = b.countries.some(d => selectedEntities.has(d.Entity));
-        return hasSelected ? "#2196f3" : "#d0d0d0";
-      })
+    .attr("fill", "#2196f3")
     .on("mouseover", (event, b) => {
       d3.select("#tooltip")
         .style("display", "block")
@@ -240,10 +241,14 @@ function drawRuralBarChart(data, selectedYear) {
 
   d3.select("#panel-2").selectAll("*").remove();
 
-  const countries = data.filter(d => {
+  let countries = data.filter(d => {
     if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return false;
     return d.Year === selectedYear;
   });
+
+  if (selectedEntities.size > 0) {
+    countries = countries.filter(d => selectedEntities.has(d.Entity));
+  }
 
   // bin countries into 10% urbanization ranges: 0-10, 10-20, ... 90-100
   const binSize = 10;
@@ -300,11 +305,7 @@ function drawRuralBarChart(data, selectedYear) {
     .attr("y", b => y(b.countries.length))
     .attr("width", x.bandwidth())
     .attr("height", b => iH - y(b.countries.length))
-    .attr("fill", b => {
-      if (selectedEntities.size === 0) return "#f37921";
-        const hasSelected = b.countries.some(d => selectedEntities.has(d.Entity));
-        return hasSelected ? "#f37921" : "#d0d0d0";
-      })
+    .attr("fill", "#f37921")
     .on("mouseover", (event, b) => {
       d3.select("#tooltip")
         .style("display", "block")
@@ -343,14 +344,18 @@ function drawGenderBarChart(data, selectedYear) {
 
   d3.select("#panel-3").selectAll("*").remove();
 
-  const countries = data.filter(d => {
+  let countries = data.filter(d => {
     if (!d.Code || d.Code.startsWith("OWID") || d.Code.length !== 3) return false;
     if (!d.gdi) return false;
     return d.Year === selectedYear;
   });
 
+  if (selectedEntities.size > 0) {
+    countries = countries.filter(d => selectedEntities.has(d.Entity));
+  }
+
   // 
-  const binSize = (1.1 - 0.4) / 12; // range of GDI values (0.3 to 1.1)
+  const binSize = (1.1 - 0.4) / 7; // range of GDI values (0.3 to 1.1)
   const bins = d3.range(0.4, 1.1, binSize).map(start => {
     const end = +(start + binSize).toFixed(1);
     return {
@@ -404,11 +409,7 @@ function drawGenderBarChart(data, selectedYear) {
     .attr("y", b => y(b.countries.length))
     .attr("width", x.bandwidth())
     .attr("height", b => iH - y(b.countries.length))
-    .attr("fill", b => {
-      if (selectedEntities.size === 0) return "#f06277";
-        const hasSelected = b.countries.some(d => selectedEntities.has(d.Entity));
-        return hasSelected ? "#f06277" : "#d0d0d0";
-      })
+    .attr("fill",  "#f06277")
     .on("mouseover", (event, b) => {
       d3.select("#tooltip")
         .style("display", "block")
@@ -446,7 +447,7 @@ function drawGenderBarChart(data, selectedYear) {
 //----scatter plot-------------
 let scatterXAttr = "Urban";
 let scatterYAttr = "gdi";
-let selectedEntities = new Set();
+
 
 d3.select("#plot").on("dblclick", () => {
   const year = +document.getElementById("year-slider").value;
@@ -616,34 +617,50 @@ function drawScatterChart(urbData, genderData, selectedYear) {
   const brush = d3.brush()
     .extent([[0, 0], [scatterWidth, scatterHeight]])
     .on("end", function(event) {
-      if (!event.selection) {
-        selectedEntities = new Set(); // clear on click away
-      } else {
-        const [[x0, y0], [x1, y1]] = event.selection;
-        selectedEntities = new Set(
-          clean
-            .filter(d =>
-              xScale(d[scatterXAttr]) >= x0 && xScale(d[scatterXAttr]) <= x1 &&
-              yScale(d[scatterYAttr]) >= y0 && yScale(d[scatterYAttr]) <= y1
-            )
-            .map(d => d.Entity)
-        );
-      }
-      // highlight selected dots, grey out others
-      d3.selectAll(".dot")
-        .attr("opacity", d =>
-          selectedEntities.size === 0 || selectedEntities.has(d.Entity) ? 0.75 : 0.1
-        )
-        .attr("r", d =>
-          selectedEntities.size === 0 || selectedEntities.has(d.Entity) ? 5 : 3
-        );
+  if (!event.selection) {
+    selectedEntities = new Set();
+  } else {
+    const [[x0, y0], [x1, y1]] = event.selection;
+    selectedEntities = new Set(
+      clean
+        .filter(d => {
+          const cx = xScale(d[scatterXAttr]);
+          const cy = yScale(d[scatterYAttr]);
+          return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1;
+        })
+        .map(d => d.Entity)
+    );
+  }
 
-        // redraw histograms with selection
-         const year = +document.getElementById("year-slider").value;
-          drawUrbBarChart(urbDataGlobal, year);
-          drawRuralBarChart(urbDataGlobal, year);
-          drawGenderBarChart(genderDataGlobal, year);
-    });
+  // highlight dots
+  d3.selectAll(".dot")
+    .attr("opacity", d =>
+      selectedEntities.size === 0 || selectedEntities.has(d.Entity) ? 0.75 : 0.1
+    )
+    .attr("r", d =>
+      selectedEntities.size === 0 || selectedEntities.has(d.Entity) ? rScale(d.gdp) : 3
+    );
+
+  // redraw histograms
+  const year = +document.getElementById("year-slider").value;
+  drawUrbBarChart(urbDataGlobal, year);
+  drawRuralBarChart(urbDataGlobal, year);
+  drawGenderBarChart(genderDataGlobal, year);
+
+  // highlight map
+  d3.selectAll(".country").attr("fill", function(d) {
+    if (selectedEntities.size === 0) {
+      return d.properties.genderindex
+        ? window._choroplethColorScale(d.properties.genderindex)
+        : "#e0e0e0";
+    }
+    const isSelected = selectedEntities.has(d.properties.name) ||
+      [...selectedEntities].some(e => nameMap[d.properties.name] === e || d.properties.name === e);
+    return isSelected
+      ? (d.properties.genderindex ? window._choroplethColorScale(d.properties.genderindex) : "#aaa")
+      : "#d0d0d0";
+  });
+});
 
   svg.append("g").attr("class", "brush").call(brush);
   svg.selectAll(".dot").data(clean).join("circle")
